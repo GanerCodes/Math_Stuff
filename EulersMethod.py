@@ -1,8 +1,8 @@
 import numpy as np
 
-start = (2, 1)
+start = (2, 6)
 endLoc = 3
-eq = "4*x-2*y"
+eq = "2*y-4*x"
 stepSize = 0.5
 
 
