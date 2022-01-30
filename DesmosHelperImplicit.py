@@ -91,19 +91,12 @@ def getPolyThingy(poly, extra = 1):
     r = ""
     for i in tri:
         x, y = ','.join(str(o[0]) for o in i), ','.join(str(o[1]) for o in i)
-        r += f"""c_{{onvex}}\\left(\\left(\\left[{x}\\right],\\left[{y}\\right]\\right),{extra},x,y\\right)\n"""
+        r += f"""c_{{onvex}}\\left(\\left(\\left[{x}\\right],\\left[{y}\\right]\\right),x,y\\right)\n"""
     r = r[:-1]
     r = '\\min\\left(' + ','.join(r.split('\n')) + '\\right)\\le0'
     return r
 
 """
-document.oncontextmenu = function(e) {
-    if(e.target.className.includes("dcg-icon")) {
-        e.preventDefault();
-        Desmos.$(e.target).trigger('dcg-longhold');
-    }
-}
-
 var n=1;
 if(state=Calc.getState(),"table"==state.expressions.list[n].type){var res="";for(let s=0;s<state.expressions.list[n].columns.length;s++)res+="["+state.expressions.list[n].columns[s].values.toString()+"]",s!=state.expressions.list[n].columns.length-1&&(res+=", ");console.log(res);window.prompt("ctrl+c",res)}
 """
