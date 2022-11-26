@@ -1,0 +1,107 @@
+ONE_CHAR_BINARY_OP = "+-"
+SPECIAL_SYMBOLS = {'lambda', 'aleph'} # add more
+BINARY_OPERATORS = {'pm', 'cdot', 'mp', 'times', 'div', 'ast', 'star', 'oplus', 'ominus', 'otimes', 'oslash', 'odot'}
+ONE_ARG_FUNCS = {'sin', 'cos', 'tan'} # add more xd
+TWO_ARG_FUNCS = {'frac', 'binom'} # add more
+NUMBERS = "0123456789"
+LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+BRACKET_PAIRS = db("name", "left", "right") {
+    ('CLOSURE_CURLY'      , '{'     , '}'),
+    ('CLOSURE_SQUARE'     , '['     , ']'),
+    ('CLOSURE_PARENTHESIS', '('     , ')'),
+    ('CLOSURE_VERT'       , '|'     , '|'),
+    ('CLOSURE_ANGLE'      , 'langle', 'rangle'),
+    ('CLOSURE_DBL_VERT'   , 'lVert' , 'rVert'),
+}
+
+SCAN_WORD(content):
+    buf = ""
+    while c := peek(content):
+        c ∉ LETTERS:
+            while s := peek(content): # loop to remove spaces
+                s != ' ':
+                    break
+                next(content)
+            break
+        buf += next(content)
+    🠒 buf
+
+SCAN_NUMBER(content):
+    buf, has_decimal = "", false
+    whilematch c := peek(content):
+        c ∈ NUMBERS:
+            buf += next(content)
+        c == '.':
+            assert not has_decimal # implies badly formatted number, ex. .1. or 1.2.
+            buf = (buf || "0") + next(content)
+            has_decimal = true
+        default:
+            break
+    buf && buf[-1] == '.':
+        buf += '0' # Ex. 2. 🠒 2.0 ; might remove this
+    🠒 ("NUMBER", [buf])
+
+SCAN_VARIABLE(content):
+    # technically two implmentations can be done here, ill use the one latex wants me to use but multi-letter variable names could be implemented here
+    assert peek(content) ∈ LETTERS
+    return ("VARIABLE", [next(content)])
+
+# creates a scope that automatically collects N latex args
+N_ARG_GENERATOR(type, N, content, func):
+    🠒 (name, [func(content, ("PARAM", [])) for i ∈ N])
+
+# we assume curly wrapping, unless alternate_exit is specified, which it will search for a special exit word
+TOP(content, contain_scope, alternate_exit=None):
+    if alternate_exit is None:
+        assert next(content) == '{' # throws out opening curly
+    
+    whilematch c := peek(content):
+        c ∈ ONE_CHAR_BINARY_OP:
+            contain_scope += ("BINARY_OP", [next(content)])
+        c ∈ NUMBERS || c == '.':
+            contain_scope += SCAN_NUMBER(content)
+        c ∈ LETTERS:
+            contain_scope += SCAN_VARIABLE(content)
+        c == '_':
+            next(content) # throw away delimiter
+            contain_scope += TOP(content, ("subscript", []))
+        c == '^':
+            next(content) # throw away delimiter
+            contain_scope += TOP(content, ("superscript", []))
+        c == '\':
+            next(content) # throws out backslash (delimiter)
+            word = SCAN_WORD(content)
+            match word:
+                word ∈ {'left', 'right'}:
+                    peek(content) == '\':
+                        follow = SCAN_WORD(content)
+                    else:
+                        follow = next(content)
+                    
+                    match word:
+                        word == 'left':
+                            closure_type = BRACKET_PAIRS['left'][follow]
+                            contain_scope += TOP(content, 
+                                (closure_type['name'], []),
+                                alternate_exit=closure_type['right'])
+                        word == 'right':
+                            assert alternate_exit && (follow == alternate_exit)
+                            break
+                word ∈ BINARY_OPERATORS:
+                    contain_scope += ("BINARY_OP", [word])
+                word ∈ SPECIAL_SYMBOLS:
+                    contain_scope += ("SYMBOL", [word])
+                word ∈ TWO_ARG_FUNCS:
+                    contain_scope += N_ARG_GENERATOR(word, 2, content, TOP)
+                default: # word ∈ ONE_ARG_FUNCS: # might change this
+                    contain_scope += N_ARG_GENERATOR(word, 1, content, TOP)
+        c == '}':
+            assert not alternate_exit # we found a closing curly when not looking for one
+            next(content) # throws out closing curly
+            break
+    
+    return contain_scope
+
+scope = Holder("MAIN", [])
+TOP(Peekable_str(r"2\cdot2+2-x_{2}\ast2^{2}"), scope, '')
+print(scope)

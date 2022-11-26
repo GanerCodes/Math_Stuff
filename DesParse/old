@@ -1,0 +1,69 @@
+from string import ascii_letters
+
+class Tex:
+    def __init__(self, kind: str, content) -> None:
+        self.kind = kind
+        if kind == "CHAR":
+            self.content = content
+            return
+        
+        self.content = []
+        for e in content:
+            if isinstance(e, Tex):
+                self.content.append(e)
+            elif isinstance(e, str):
+                self.content.append(
+                    Tex("CHAR", e))
+            else:
+                raise TypeError("Expected str or Tex instance")
+    def group(self, kind, a, b=-1):
+        self.content[a:b] = [Tex(kind, self.content[a:b])]
+    def __str__(self):
+        return f"{self.kind}[{', '.join(map(str, self))}]"
+    def __iter__(self):
+        return iter(self.content)
+    def enum(self):
+        i = 0
+        while i < (pre_len := len(self)):
+            yield i, self.content[i]
+            if (new_len := len(self)) != pre_len:
+                i += new_len - pre_len
+            i += 1
+    def __len__(self) -> int:
+        return len(self.content)
+    def __xor__(self, other) -> bool:
+        if isinstance(other, Tex):
+            return self.kind == other.kind
+        elif isinstance(other, str):
+            return self.kind == other
+        else:
+            raise TypeError("Expected str or Tex instance")
+    
+    def parse(self) -> None:
+        pass
+
+    
+    # def PARSE_WORD_START(self):
+    #     for i, e in self.enum():
+    #         if e ^ 'CHAR':
+    #             if e.content in '\\':
+    #                 e.kind = 'WORD_START'
+    # def PARSE_WORD(self):
+    #     start = None
+    #     state = 0
+    #     for i, e in self.enum():
+    #         match state:
+    #             case 0:
+    #                 if e ^ 'WORD_START':
+    #                     state = 1
+    #                     start = i
+    #             case 1:
+    #                 if e ^ 'CHAR' and e.content in ascii_letters:
+    #                     continue
+    #                 else:
+    #                     self.group("WORD", start, i)
+    #                     start, state = None, 0
+        
+t = Tex("top", r"""10^{\sqrt{x}}\left(x^{2}+\sin\left(y\right)-1\right)""")
+t.parse()
+print(t)
