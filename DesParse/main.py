@@ -46,7 +46,7 @@ ONE_CHAR_RELATION = set("=<>")
 ONE_CHAR_SYMBOLS = set(",':;|@&#!\"")
 OPERATORS = {'pm', 'cdot', 'mp', 'times', 'div', 'ast', 'star', 'oplus', 'ominus', 'otimes', 'oslash', 'odot'}
 RELATIONS = {'ge', 'le', 'equiv', 'cong', 'gg', 'll', 'doteq', 'sim', 'simeq', 'approx', 'ne'}
-SYMBOLS = {'int', 'sum', 'prod', 'Gamma', 'Delta', 'Lambda', 'Phi', 'Pi', 'Psi', 'Sigma', 'Theta', 'Upsilon', 'Xi', 'Omega', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega', 'digamma', 'varepsilon', 'varkappa', 'varphi', 'varpi', 'varrho', 'varsigma', 'vartheta', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'triangle', 'triangledown', 'sharp', 'infty', 'diamondsuit', 'bigstar', 'blacksquare', 'blacktriangle', 'blacktriangledown', 'varnothing', 'backslash', '#', '$', '&'}
+SYMBOLS = {'int', 'sum', 'prod', 'Gamma', 'implies', 'Delta', 'Lambda', 'Phi', 'Pi', 'Psi', 'Sigma', 'Theta', 'Upsilon', 'Xi', 'Omega', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega', 'digamma', 'varepsilon', 'varkappa', 'varphi', 'varpi', 'varrho', 'varsigma', 'vartheta', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'triangle', 'triangledown', 'sharp', 'infty', 'diamondsuit', 'bigstar', 'blacksquare', 'blacktriangle', 'blacktriangledown', 'varnothing', 'backslash', '#', '$', '&'}
 ONE_ARG_FUNCS = {'overline', 'underline', 'operatorname', 'sqrt'} # add more
 TWO_ARG_FUNCS = {'frac', 'binom', 'sqrt'} # add more
 BRACKET_PAIRS = Njective_static_map(
@@ -77,7 +77,7 @@ def SCAN_NUMBER(content):
             buf += content.next()
         elif c == '.':
             assert not has_decimal # implies badly formatted number, ex. .1. or 1.2.
-            buf = (buf or "0") + content.next()
+            buf += content.next()
             has_decimal = True
         else:
             break
@@ -183,8 +183,6 @@ def parse_latex(s):
     return TOP(Peekable_str(s), Holder(), '')
 
 def compile_latex(s):
-    ospace = lambda x: x[0] if len(x) else ' '
-    
     if isinstance(s, Holder):
         name, args = s
     else:
@@ -250,7 +248,12 @@ def compile_latex(s):
 # t = r"""f\left(x,y\right)=-\max\left(-\left(\left(0.4\left(x+2.5\right)\right)^{2}+10\left(2\left(y-0.6\right)+\frac{\sin\left(4\left(2x+2\right)\cdot0.4\right)}{4}\right)^{2}-1\right),-\left(\left(x-1.7\right)^{2}+\left(y-2.2-\frac{\sin\left(\left|x-2.3\right|\right)}{2}\right)^{2}-1\right),-\min\left(\min\left(\left(\left|2\left(y+3.5\right)+\left|\left(x-2.5\right)\right|\right|+\left|\left(x-2.5\right)\right|-1\right),\max\left(0.8\left|\left(x-2.5\right)\right|,0.15\left|\left(y+3.5\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+4\right)+\left|\left(x-\frac{2.9}{3}\right)\right|\right|+\left|\left(x-\frac{2.9}{3}\right)\right|-1\right),\max\left(0.8\left|\left(x-\frac{2.9}{3}\right)\right|,0.15\left|\left(y+4\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+4\right)+\left|\left(x+2.5\right)\right|\right|+\left|\left(x+2.5\right)\right|-1\right),\max\left(0.8\left|\left(x+2.5\right)\right|,0.15\left|\left(y+4\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+3.5\right)+\left|\left(x+\frac{2.9}{3}\right)\right|\right|+\left|\left(x+\frac{2.9}{3}\right)\right|-1\right),\max\left(0.8\left|\left(x+\frac{2.9}{3}\right)\right|,0.15\left|\left(y+3.5\right)-2\right|\right)-0.3\right)\right),-\left(0.3x^{2}+0.25y^{4}-2^{2}\right),-\left(\left(x-3\right)^{2}+\left(y-0.5-\frac{x}{3}\right)^{2}-3\right)\left(\left(x-3.6\right)^{2}+\left(y-2.75\right)^{2}-0.3^{2}\right),-\left(0.2\left(x-5.8\right)^{2}+\left(3\left(y-\frac{x}{3}-1\right)+\sin\left(2x\right)\right)^{2}-0.75\right)\right)-0.08"""
 # t = r"""\sqrt[5]{x}"""
 # t = r"""!das\backslash d\cdot\&"""
-t = r"""\int_{0^{-1}}^{x^{x^{x^{x^{x\sum_{n=0}^{10}n}}}}}x_{d}"""
+# t = r"""\int_{0^{-1}}^{x^{x^{x^{x^{x\sum_{n=0}^{10}n}}}}}x_{d}"""
+# t = r"""\sqrt[\sqrt{2}]{2^{e^{\ln\left(2\right)}}}"""
+# t = r"""\max\left(\left|x-p.x\right|,\left|y-p.y\right|\right)\le1"""
+# t = r"""\left(-1\right)^{k}\int_{ }^{\lambda}d_{\gamma}f_{k}\left(\gamma\right)\left(\frac{d^{k}}{d\gamma^{k}}\left(\lambda-\gamma\right)^{n}\right)"""
+# t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
+t = r"""t\left(x,y,a,a_{x},a_{y},s_{x},s_{y}\right)=\left(\frac{\cos\left(a\right)\left(x-a_{x}\right)+\sin\left(a\right)\left(y-a_{y}\right)}{s_{x}},\frac{\cos\left(a\right)\left(y-a_{y}\right)-\sin\left(a\right)\left(x-a_{x}\right)}{s_{y}}\right)"""
 
 r = parse_latex(t)
 print(r)
