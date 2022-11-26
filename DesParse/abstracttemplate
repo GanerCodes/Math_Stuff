@@ -41,7 +41,7 @@ TOP(content, contain_scope=None):
     contain_scope is None:
         contain_scope = Holder()
     
-    whilematch c := content.peek():
+    whilematch c := content.peek():s
         name, args = c
         
         name ∈ {"VARIABLE", "SYMBOL"}:
