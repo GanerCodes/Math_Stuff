@@ -1,3 +1,5 @@
+from functools import reduce
+
 class Njective_static_map:
     def __init__(self, types, data):
         self.mappings = {i: {} for i in types}
@@ -8,19 +10,6 @@ class Njective_static_map:
     
     def __getitem__(self, i):
         return self.mappings[i]
-
-class Peekable_str:
-    def __init__(self, s):
-        self.s = s
-    def __str__(self):
-        return self.s
-    def next(self):
-        if not len(self.s): return
-        r, self.s = self.s[0], self.s[1:]
-        return r
-    def peek(self):
-        if not len(self.s): return
-        return self.s[0]
 
 class Holder:
     def __init__(self, name="", data=None):
@@ -34,29 +23,60 @@ class Holder:
         return self
     def __iter__(self):
         return iter((self.name, self.data))
+    def __len__(self):
+        return len(self.data)
+    def __getitem__(self, i):
+        return self.data[i]
     def __repr__(self):
         return f"{self.name}[{', '.join(map(str, self.data))}]"
     def __str__(self):
         return repr(self)
 
+class Peekable:
+    def __init__(self, s):
+        self.s = s
+    def __str__(self):
+        return str(self.s)
+    def __len__(self):
+        return len(self.s)
+    def next(self):
+        if not len(self.s): return
+        r, self.s = self.s[0], self.s[1:]
+        return r
+    def peek(self):
+        if not len(self.s): return
+        return self.s[0]
+
 LETTERS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 NUMBERS = set("0123456789")
-ONE_CHAR_OPERATOR = set("+-")
-ONE_CHAR_RELATION = set("=<>")
-ONE_CHAR_SYMBOLS = set(",'.:;|@&#!\"")
-OPERATORS = {'pm', 'cdot', 'mp', 'times', 'div', 'ast', 'star', 'oplus', 'ominus', 'otimes', 'oslash', 'odot'}
-RELATIONS = {'ge', 'le', 'equiv', 'cong', 'gg', 'll', 'doteq', 'sim', 'simeq', 'approx', 'ne'}
-SYMBOLS = {'int', 'sum', 'prod', 'Gamma', 'implies', 'Delta', 'Lambda', 'Phi', 'Pi', 'Psi', 'Sigma', 'Theta', 'Upsilon', 'Xi', 'Omega', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega', 'digamma', 'varepsilon', 'varkappa', 'varphi', 'varpi', 'varrho', 'varsigma', 'vartheta', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'triangle', 'triangledown', 'sharp', 'infty', 'diamondsuit', 'bigstar', 'blacksquare', 'blacktriangle', 'blacktriangledown', 'varnothing', 'backslash', '#', '$', '&'}
 ONE_ARG_FUNCS = {'overline', 'underline', 'operatorname', 'sqrt'} # add more
 TWO_ARG_FUNCS = {'frac', 'binom', 'sqrt'} # add more
+PSEUDO_CLOSURES = {'', 'VAR', 'NUMBER', 'VARIABLE', 'ITERABLE', 'ITER_BODY'}
+SYMBOL_MAP = {
+    "OPERATION": (
+        set("+-!"),
+        {'pm', 'cdot', 'mp', 'times', 'div', 'ast', 'star', 'oplus', 'ominus', 'otimes', 'oslash', 'odot'}),
+    "RELATION": (
+        set("=<>,"),
+        {'ge', 'le', 'equiv', 'cong', 'gg', 'll', 'doteq', 'sim', 'simeq', 'approx', 'ne'}),
+    "SYMBOL": (
+        set("'.:;|@&#\""),
+        {'int', 'sum', 'prod', 'Gamma', 'implies', 'Delta', 'Lambda', 'Phi', 'Pi', 'Psi', 'Sigma', 'Theta', 'Upsilon', 'Xi', 'Omega', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega', 'digamma', 'varepsilon', 'varkappa', 'varphi', 'varpi', 'varrho', 'varsigma', 'vartheta', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'triangle', 'triangledown', 'sharp', 'infty', 'diamondsuit', 'bigstar', 'blacksquare', 'blacktriangle', 'blacktriangledown', 'varnothing', 'backslash', '#', '$', '&'})}
 BRACKET_PAIRS = Njective_static_map(
-    ("name", "left", "right"),
+     ("name"               , "left"  , "right"),
     (('CLOSURE_CURLY'      , '{'     , '}'),
      ('CLOSURE_SQUARE'     , '['     , ']'),
      ('CLOSURE_PARENTHESIS', '('     , ')'),
      ('CLOSURE_VERT'       , '|'     , '|'),
      ('CLOSURE_ANGLE'      , 'langle', 'rangle'),
      ('CLOSURE_DBL_VERT'   , 'lVert' , 'rVert')))
+
+ONE_CHAR_SYMBOLS, SYMBOLS = (reduce(set.__or__, (s[n] for s in SYMBOL_MAP.values())) for n in (0,1))
+def match_symbol_type(symbol, n=0):
+    for k, v in SYMBOL_MAP.items():
+        if symbol in v[n]:
+            return k
+    raise ValueError(f"Unable to match symbol {symbol}!")
 
 def SCAN_WORD(content):
     buf = ""
@@ -138,15 +158,10 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
                 if word == 'right':
                     assert alternate_exit and (follow == alternate_exit)
                     break
-            if word in OPERATORS:
-                contain_scope += Holder("OPERATOR", [word])
-                continue
             if word in SYMBOLS:
-                contain_scope += Holder("SYMBOL", [word])
+                contain_scope += Holder(match_symbol_type(word, 1), [word])
                 continue
-            if word in RELATIONS:
-                contain_scope += Holder("RELATION", [word])
-                continue
+            
             if word in ONE_ARG_FUNCS and word in TWO_ARG_FUNCS and content.peek() == '[':
                 contain_scope += Holder(word, [
                     TOP(content, Holder(), scanpair='[]'),
@@ -161,14 +176,8 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
             
             contain_scope += Holder("FUNCTION", [word])
             continue
-        if c in ONE_CHAR_OPERATOR:
-            contain_scope += Holder("OPERATOR", [content.next()])
-            continue
         if c in ONE_CHAR_SYMBOLS:
-            contain_scope += Holder("SYMBOL", [content.next()])
-            continue
-        if c in ONE_CHAR_RELATION:
-            contain_scope += Holder("RELATION", [content.next()])
+            contain_scope += Holder(match_symbol_type(c), [content.next()])
             continue
         if c == ' ':
             content.next() # throw away space
@@ -183,7 +192,7 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
     return contain_scope
 
 def parse_latex(s):
-    return TOP(Peekable_str(s), Holder(), '')
+    return TOP(Peekable(s), Holder(), '')
 
 def compile_latex(s):
     if isinstance(s, Holder):
@@ -192,7 +201,7 @@ def compile_latex(s):
         name, args = '', s
     
     args = [compile_latex(i) if isinstance(i, Holder) else i for i in args]
-    if not name:
+    if name in PSEUDO_CLOSURES:
         r = ""
         for a in args:
             if r and r[-1] in LETTERS and a and a[0] in LETTERS:
@@ -200,29 +209,21 @@ def compile_latex(s):
             r += a
         return r
     
-    if name == "NUMBER" or name == "VARIABLE":
-        return args[0]
     if name == "FUNCTION":
         return f"\\{args[0]}"
     if name == "superscript":
         return "^{%s}" % compile_latex(args)
     if name == "subscript":
         return "_{%s}" % compile_latex(args)
-    if name == "OPERATOR":
-        if args[0] in ONE_CHAR_OPERATOR:
+        
+    if name in SYMBOL_MAP:
+        t = SYMBOL_MAP[name]
+        if args[0] in t[0]:
             return args[0]
-        else:
+        elif args[0] in t[1]:
             return f"\\{args[0]}"
-    if name == "RELATION":
-        if args[0] in ONE_CHAR_RELATION:
-            return args[0]
         else:
-            return f"\\{args[0]}"
-    if name == "SYMBOL":
-        if args[0] in ONE_CHAR_SYMBOLS:
-            return args[0]
-        else:
-            return f"\\{args[0]}"
+            raise ValueError(f"Unable to match symbol {args[0]}!")
     
     if name in BRACKET_PAIRS['name']:
         pair = BRACKET_PAIRS['name'][name]
