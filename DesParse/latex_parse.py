@@ -78,7 +78,7 @@ def match_symbol_type(symbol, n=0):
             return k
     raise ValueError(f"Unable to match symbol {symbol}!")
 
-def SCAN_WORD(content):
+def SCAN_WORD(content): # \stuff
     buf = ""
     while c := content.peek():
         if c not in LETTERS:
@@ -88,6 +88,53 @@ def SCAN_WORD(content):
                 content.next()
             break
         buf += content.next()
+    return buf
+
+def SCAN_TEXT(content): # \text{} starting at the end of \text
+    assert content.next() == '{'
+    
+    buf = ""
+    while c := content.peek():
+        if c == '\\':
+            content.next() # throw away backslash
+            if content.peek() in '{}':
+                buf += content.next()
+            else:
+                if SCAN_WORD(content) == "backslash":
+                    buf += '\\'
+                else:
+                    raise Exception("What")
+            continue
+        if c == '}':
+            content.next() # throw away closing
+            break
+        buf += content.next()
+    return Holder("TEXT", [buf])
+
+def PARSE_TEXT(text): # Deals with desmos unlocked jank
+    if isinstance(text, Holder):
+        assert text.name == "TEXT"
+        text = text.data[0]
+    
+    if isinstance(text, str):
+        text = Peekable(text)
+    
+    buf = ''
+    recurse = False
+    while c := text.peek():
+        if c in '{}':
+            buf += "⦃⦄"[text.next() == '}'] # reeee
+            continue
+        if c == '\\':
+            text.next()
+            recurse = True
+            break
+        buf += text.next()
+    
+    if len(buf):
+        buf = "\\text{%s}" % buf
+    if recurse:
+        buf += "\\backslash" + PARSE_TEXT(text)
     return buf
 
 def SCAN_NUMBER(content):
@@ -140,7 +187,7 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
             content.next() # throws out backslash (delimiter)
             word = SCAN_WORD(content).lstrip()
             
-            if not word: # literally just space
+            if not word: # literally just space, idc about preserving spaces atm
                 continue
             
             if word in {'left', 'right'}:
@@ -158,21 +205,26 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
                 if word == 'right':
                     assert alternate_exit and (follow == alternate_exit)
                     break
+            
+            if word == "text":
+                contain_scope += SCAN_TEXT(content)
+                continue
+            
             if word in SYMBOLS:
                 contain_scope += Holder(match_symbol_type(word, 1), [word])
                 continue
             
-            if word in ONE_ARG_FUNCS and word in TWO_ARG_FUNCS and content.peek() == '[':
-                contain_scope += Holder(word, [
-                    TOP(content, Holder(), scanpair='[]'),
-                    TOP(content, Holder())])
-                continue
-            if word in ONE_ARG_FUNCS:
-                contain_scope += N_ARG_GENERATOR(word, 1, content, TOP)
-                continue
-            if word in TWO_ARG_FUNCS:
+            A, B = word in ONE_ARG_FUNCS, word in TWO_ARG_FUNCS
+            if A or B:
+                if A and B and content.peek() == '[':
+                    contain_scope += Holder(word, [
+                        TOP(content, Holder(), scanpair='[]'),
+                        TOP(content, Holder())])
+                    continue
+                if A:
+                    contain_scope += N_ARG_GENERATOR(word, 1, content, TOP)
+                    continue
                 contain_scope += N_ARG_GENERATOR(word, 2, content, TOP)
-                continue
             
             contain_scope += Holder("FUNCTION", [word])
             continue
@@ -209,6 +261,8 @@ def compile_latex(s):
             r += a
         return r
     
+    if name == "TEXT":
+        return PARSE_TEXT(args[0])
     if name == "FUNCTION":
         return f"\\{args[0]}"
     if name == "superscript":
@@ -230,8 +284,7 @@ def compile_latex(s):
         sp = ' ' if len(pair['left']) > 1 else ''
         return f"\\left{pair['left']}{sp}{compile_latex(args)}\\right{pair['right']}{sp}"
     
-    A = name in ONE_ARG_FUNCS
-    B = name in TWO_ARG_FUNCS
+    A, B = name in ONE_ARG_FUNCS, name in TWO_ARG_FUNCS
     if A or B:
         if len(args) == 2:
             if A and B:
@@ -257,9 +310,10 @@ if __name__ == "__main__":
     # t = r"""\sqrt[\sqrt{2}]{2^{e^{\ln\left(2\right)}}}"""
     # t = r"""\max\left(\left|x-p.x\right|,\left|y-p.y\right|\right)\le1"""
     # t = r"""\left(-1\right)^{k}\int_{ }^{\lambda}d_{\gamma}f_{k}\left(\gamma\right)\left(\frac{d^{k}}{d\gamma^{k}}\left(\lambda-\gamma\right)^{n}\right)"""
-    t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
+    # t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
     # t = r"""t\left(x,y,a,a_{x},a_{y},s_{x},s_{y}\right)=\left(\frac{\cos\left(a\right)\left(x-a_{x}\right)+\sin\left(a\right)\left(y-a_{y}\right)}{s_{x}},\frac{\cos\left(a\right)\left(y-a_{y}\right)-\sin\left(a\right)\left(x-a_{x}\right)}{s_{y}}\right)"""
-    # t = "x_{r}.y"
+    # t = r"x_{r}.y"
+    t = r"""x\text{dasd\backslash \backslash asd \backslash\{\}\backslash as \backslash\}\{|\backslash}x"""
     r = parse_latex(t)
     print(r)
     print(compile_latex(r))
