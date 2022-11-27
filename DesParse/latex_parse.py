@@ -225,6 +225,7 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
                     contain_scope += N_ARG_GENERATOR(word, 1, content, TOP)
                     continue
                 contain_scope += N_ARG_GENERATOR(word, 2, content, TOP)
+                continue
             
             contain_scope += Holder("FUNCTION", [word])
             continue
@@ -313,7 +314,8 @@ if __name__ == "__main__":
     # t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
     # t = r"""t\left(x,y,a,a_{x},a_{y},s_{x},s_{y}\right)=\left(\frac{\cos\left(a\right)\left(x-a_{x}\right)+\sin\left(a\right)\left(y-a_{y}\right)}{s_{x}},\frac{\cos\left(a\right)\left(y-a_{y}\right)-\sin\left(a\right)\left(x-a_{x}\right)}{s_{y}}\right)"""
     # t = r"x_{r}.y"
-    t = r"""x\text{dasd\backslash \backslash asd \backslash\{\}\backslash as \backslash\}\{|\backslash}x"""
+    # t = r"""x\text{dasd\backslash \backslash asd \backslash\{\}\backslash as \backslash\}\{|\backslash}x"""
+    t = r"""\binom{x^{2}}{y^{2}}^{2}"""
     r = parse_latex(t)
     print(r)
     print(compile_latex(r))
