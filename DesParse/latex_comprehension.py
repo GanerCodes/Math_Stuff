@@ -1,74 +1,240 @@
-from latex_parse import (parse_latex, compile_latex, Peekable, Holder, ONE_CHAR_OPERATOR, BRACKET_PAIRS)
+from latex_parse import (parse_latex, compile_latex, Peekable, Holder, LETTERS, NUMBERS, ONE_ARG_FUNCS, TWO_ARG_FUNCS, PSEUDO_CLOSURES, SYMBOL_MAP, BRACKET_PAIRS)
 
 ITER_TYPES = {'int', 'prod', 'sum'}
-SPLIT_OPERATORS = ONE_CHAR_OPERATOR
+SPLIT_OPERATORS = set("+-,")
+RIGHT_UNARY_OPERATORS = set("!")
 
 def TAKE_ENSURE(content, name):
     assert content and content.peek().name == name
     return content.next()
 
-def ITERABLE_SCANNER(content):
-    first = content.next()
-    lower = TAKE_ENSURE(content, "subscript")
-    upper = TAKE_ENSURE(content, "superscript")
-    body = Holder()
-    while p := content.peek():
-        if p.name == "OPERATOR" and p.data[0] in SPLIT_OPERATORS:
-            break
-        body += content.next()
-    
-    return Holder("ITERABLE", [
-        first,
-        PARSE_INNER(lower),
-        PARSE_INNER(upper),
-        PARSE_INNER(body)])
+def TAKE_N(content, N=1):
+    return [content.next() for _ in range(N)]
 
-def VAR_SCANNER(content):
-    VAR = Holder("VAR", [content.next()])
+def CHECK_SEQUENCE(content, *names):
+    r = []
+    for i, n in enumerate(names):
+        if q := content.peek(i):
+            if (isinstance(n, str) and (n == '*' or n == q.name)) or q.name in n:
+                r.append(q)
+                continue
+            return
+        return
+    return r
+
+class Parser:
+    CHAIN = []
     
-    if not (r := content.peek()): return VAR
-    if r.name == "subscript":
-        VAR += content.next()
-        if not (r := content.peek()): return VAR
-    # maybe implement array variable type stuff here?
-    if r.name == "SYMBOL" and r.data[0] == '.':
-        if not (t := r.peek()): return VAR
-        if t.name in {"VARIABLE", "SYMBOL"}:
-            VAR += content.next() # add dot
-            VAR += VAR_SCANNER(content).data # add the rest
-    return VAR
+    def __init_subclass__(cls):
+        Parser.CHAIN.append(cls)
     
-def TOP(content, scope=None):
-    if isinstance(content, list):
-        content = Peekable(content)
-    if scope is None:
-        scope = Holder()
-    
-    while c := content.peek():
-        name, data = c
+    def __new__(cls, data, print_steps=False):
+        if cls == Parser:
+            if isinstance(data, str):
+                data = parse_latex(data)
+            for c in Parser.CHAIN:
+                data = c(data)
+                if print_steps:
+                    print(c.__name__, data)
+            return data
         
-        if name in {"VARIABLE", "SYMBOL"}:
-            if name == "SYMBOL" and c.data[0] in ITER_TYPES:
-                scope += ITERABLE_SCANNER(content)
+        if not isinstance(data, Peekable):
+            data = Peekable(data)
+           
+        return cls.TOP(data)
+    
+    def format_args(content, scope):
+        if isinstance(content, list):
+            content = Peekable(content)
+        if scope is None:
+            scope = Holder()
+        return content, scope
+    
+    @classmethod
+    def PARSE_INNER(cls, cell, func=None, **kwargs):
+        if func is None:
+            func = cls.TOP
+        return Holder(cell.name, func(cell.data, **kwargs).data)
+    
+    @classmethod
+    def TOP(cls, content, scope=None, CHECKERS=None):
+        content, scope = cls.format_args(content, scope)
+        CHECKERS = CHECKERS or cls.CHECKERS
+        
+        while c := content.peek():
+            name, data = c
+            for checker in cls.CHECKERS:
+                checker = getattr(cls, checker)
+                if check := checker(name, data, content):
+                    scope += check
+                    break
             else:
-                scope += VAR_SCANNER(content)
-            continue
-        if name in BRACKET_PAIRS['name']:
-            scope += PARSE_INNER(content.next())
-            continue
+                scope += content.next()
         
-        scope += content.next()
+        return scope
+
+class PassZero(Parser):
+    @classmethod
+    def ITERABLE_CHECKER(cls, name, data, content):
+        if name == "ITERABLE":
+            content and content.next()
+            return Holder(name, [
+                data[0],
+                cls.PARSE_INNER(data[1]),
+                cls.PARSE_INNER(data[2]),
+                cls.PARSE_INNER(data[3])])
         
-    return scope
+        if not (CHECK_SEQUENCE(content,
+            'SYMBOL', 'subscript', 'superscript') \
+                and data[0] in ITER_TYPES):
+            return
+        
+        first, lower, upper = TAKE_N(content, 3)
+        body = Holder()
+        while p := content.peek():
+            if p.name == "RELATION" or (p.name == "OPERATOR" and p.data[0] in SPLIT_OPERATORS):
+                break
+            body += content.next()
+        return cls.ITERABLE_CHECKER("ITERABLE", [first, lower, upper, body], None)
 
-def PARSE_INNER(cell, func=TOP):
-    return Holder(cell.name, func(cell.data).data)
+    @classmethod
+    def VARIABLE_CHECKER(cls, name, data, content):
+        if name not in {"VAR", "SYMBOL"}: return
+        VARIABLE = Holder("VARIABLE", [content.next()], hide_data=True)
+        
+        if not (r := content.peek()): return VARIABLE
+        if r.name == "subscript":
+            VARIABLE += content.next()
+            if not (r := content.peek()): return VARIABLE
+        # maybe implement array variable type stuff here?
+        if r.name == "SYMBOL" and r.data[0] == '.':
+            if not (t := content.peek(1)): return VARIABLE
+            if t.name in {"VAR", "SYMBOL"}:
+                VARIABLE += content.next() # add dot
+                VARIABLE += cls.VARIABLE_CHECKER(t.name, t.data, content).data # add the rest
+        return VARIABLE
+    
+    @classmethod
+    def FUNC_CHECKER(cls, name, data, content):
+        if not (name in ONE_ARG_FUNCS or name in TWO_ARG_FUNCS): return
+        
+        r = Holder(name)
+        for a in content.next().data:
+            r += cls.PARSE_INNER(a)
+        return r
+    
+    @classmethod
+    def CLOSURE_CHECKER(cls, name, data, content):
+        if name not in BRACKET_PAIRS['name'] and name != '': return
+        
+        return cls.PARSE_INNER(content.next())
+    
+    CHECKERS = ('ITERABLE_CHECKER', 'VARIABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER')
 
-def parse_abstract(s):
-    return TOP(Peekable(parse_latex(s)))
+class DumbFunctionPass(PassZero):
+    @classmethod
+    def VARIABLE_FUNCTION_CHECKER(cls, name, data, content):
+        if name != "FUNCTION": return
+        f = content.next()
+        if CHECK_SEQUENCE(content, 'subscript', 'superscript'): # why
+            return Holder("FUNCEXP", [f] + TAKE_N(content, 2))
+        elif CHECK_SEQUENCE(content, 'superscript'):
+            return Holder("FUNCEXP", [f, content.next()])
+        else:
+            return Holder("FUNCEXP", [f])
+        
+    CHECKERS = ('VARIABLE_FUNCTION_CHECKER', 'ITERABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER')
+
+# Not doing this, too much weird behavior to be bothered. 
+# class SecondDumbImplicitFunctionPass(DumbFunctionPass):
+#     @classmethod
+#     def IMPLICIT_FUNCTION_ARG_CHECKER(cls, name, data, content):
+#         if name != "FUNCEXP": return
+#         'FUNCEXP', 'OPERATOR'['-'], 'NUMBER'
+#         'FUNCEXP', 'VARIABLE', 'SUPERSCRIPT'
+#         'FUNCEXP', 'VARIABLE', 'SUPERSCRIPT'
+
+class FunctionCallPass(DumbFunctionPass):
+    def match_user_function(symb):
+        if symb.name == "VARIABLE":
+            if symb.data[0].data[0] in {'f', 'g', 'h'}:
+                return True
+    
+    @classmethod
+    def FUNCTION_CALL_CHECKER(cls, name, data, content):
+        if name == "FUNC_CALL":
+            content and content.next()
+            args = Holder(data[1].name)
+            for i in data[1].data:
+                if i.name == "FUNC_ARGUMENT":
+                    args += cls.PARSE_INNER(i)
+                else:
+                    args += i
+            
+            return Holder(name, [data[0], args])
+        
+        if not (content.peek(1) and content.peek(1).name == "CLOSURE_PARENTHESIS"): return
+        
+        if name == "FUNCEXP" or cls.match_user_function(content.peek()):
+            func, func_params = TAKE_N(content, 2)
+            new_params = Holder(func_params.name)
+            
+            it = Peekable(func_params.data)
+            while c := it.peek():
+                buffer = []
+                while d := it.peek():
+                    if d.name == "RELATION" and d.data[0] == ',':
+                        break
+                    buffer.append(it.next())
+                new_params += [Holder("FUNC_ARGUMENT", buffer)]
+                if it.peek():
+                    new_params += it.next()
+            
+            return cls.FUNCTION_CALL_CHECKER("FUNC_CALL", [func, new_params], None)
+    
+    CHECKERS = ('FUNCTION_CALL_CHECKER', 'ITERABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER', 'VARIABLE_FUNCTION_CHECKER')
+
+class PassOne(FunctionCallPass):
+    @classmethod
+    def EXPONENT_CHECKER(cls, name, data, content):
+        if name == "EXPONENTIAL":
+            content and content.next()
+            return Holder(name, [cls.PARSE_INNER(i) for i in data])
+        
+        if not CHECK_SEQUENCE(content, '*', 'superscript'):
+            return
+        
+        base, exp = TAKE_N(content, 2)
+        return cls.EXPONENT_CHECKER("EXPONENTIAL", [Holder(data=[base]), exp], None)
+    
+    CHECKERS = ('EXPONENT_CHECKER', 'ITERABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER', 'VARIABLE_FUNCTION_CHECKER', 'FUNCTION_CALL_CHECKER')
+
+class PassTwo(PassOne):
+    @classmethod
+    def RIGHT_UNARY_OPERATOR_CHECKER(cls, name, data, content):
+        if name == "RIGHT_UNARY_COUPLE":
+            content and content.next()
+            return Holder(name, [cls.PARSE_INNER(data[0]), data[1]])
+        
+        if not (CHECK_SEQUENCE(content, '*', 'OPERATOR') and \
+            content.peek(1).data[0] in RIGHT_UNARY_OPERATORS):
+            return
+        
+        arg, op = TAKE_N(content, 2)
+        return cls.RIGHT_UNARY_OPERATOR_CHECKER("RIGHT_UNARY_COUPLE", [Holder(data=[arg]), op], None)
+    
+    CHECKERS = ('RIGHT_UNARY_OPERATOR_CHECKER', 'ITERABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER', 'VARIABLE_FUNCTION_CHECKER', 'FUNCTION_CALL_CHECKER', 'EXPONENT_CHECKER')
 
 if __name__ == "__main__":
-    t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
-    q = parse_abstract(t)
-    print(q)
+    # t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
+    # t = r"""d.x^{2}"""
+    # t = r"""\int_{d.x}^{d.y+\int_{0}^{2}\pi d_{\pi}}\ln\left(\left|\lambda^{3^{3\text{hi}}}\right|\right)d_{\lambda}"""
+    # t = r"""1x^{2x^{3x^{4x}}}"""
+    # t = r"""x^{\frac{1}{2}}"""
+    # t = r"""3!"""
+    # t = r"""\sin\left(x\right)^{2}"""
+    # t = r"""\cos^{2}\left(x\right)"""
+    t = r"""\min\left(a,b,f\left(x\right)^{2},2+\cos\left(2,bx^{2}\right)\right)^{2}"""
+    q = Parser(t, print_steps=True)
+    print(q.pretty())
     print(compile_latex(q))

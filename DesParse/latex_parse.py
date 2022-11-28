@@ -1,4 +1,5 @@
 from functools import reduce
+import string
 
 class Njective_static_map:
     def __init__(self, types, data):
@@ -12,9 +13,10 @@ class Njective_static_map:
         return self.mappings[i]
 
 class Holder:
-    def __init__(self, name="", data=None):
+    def __init__(self, name="", data=None, *, hide_data=False):
         self.name = name
         self.data = data or []
+        self.hide_data = hide_data
     def __iadd__(self, other):
         if isinstance(other, list):
             self.data += other
@@ -28,9 +30,32 @@ class Holder:
     def __getitem__(self, i):
         return self.data[i]
     def __repr__(self):
-        return f"{self.name}[{', '.join(map(str, self.data))}]"
+        return f"{self.name or '*'}[{', '.join(map(str, self.data))}]"
     def __str__(self):
         return repr(self)
+    def __bool__(self):
+        return True
+    def __eq__(self, other):
+        if type(self) != type(other): return
+        if isinstance(self, str): return self == other
+        if (self.name != other.name) or (len(self.data) != len(other.data)): return
+        return all(A == B for A, B in zip(self.data, other.data))
+    def __hash__(self):
+        return hash((self.name, len(self.data))) # meh
+    def pretty(self, q=0):
+        t, r = ('  '*(q + 1)), f"{self.name or '*'}["
+        if self.hide_data:
+            r += "..."
+        else:
+            if self.name == "TEXT":
+                r += f'"{self.data[0]}"'
+            elif len(self.data) > 1:
+                for a in self.data:
+                    r += f"\n{t}{a.pretty(q+1) if isinstance(a, Holder) else a}"
+            elif len(self.data):
+                a = self.data[0]
+                r += f"{a.pretty(q+1) if isinstance(a, Holder) else a}"
+        return r + ']'
 
 class Peekable:
     def __init__(self, s):
@@ -43,25 +68,23 @@ class Peekable:
         if not len(self.s): return
         r, self.s = self.s[0], self.s[1:]
         return r
-    def peek(self):
-        if not len(self.s): return
-        return self.s[0]
+    def peek(self, n=0):
+        if len(self.s) <= n: return
+        return self.s[n]
 
-LETTERS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-NUMBERS = set("0123456789")
 ONE_ARG_FUNCS = {'overline', 'underline', 'operatorname', 'sqrt'} # add more
-TWO_ARG_FUNCS = {'frac', 'binom', 'sqrt'} # add more
-PSEUDO_CLOSURES = {'', 'VAR', 'NUMBER', 'VARIABLE', 'ITERABLE', 'ITER_BODY'}
+TWO_ARG_FUNCS = {'frac', 'binom', 'sqrt'} # add more?
+PSEUDO_CLOSURES = {'', 'VAR', 'NUMBER', 'VARIABLE', 'ITERABLE', 'EXPONENTIAL', 'RIGHT_UNARY_COUPLE', 'FUNCEXP', 'FUNC_CALL', 'FUNC_ARGUMENT'}
 SYMBOL_MAP = {
-    "OPERATION": (
+    "OPERATOR": (
         set("+-!"),
         {'pm', 'cdot', 'mp', 'times', 'div', 'ast', 'star', 'oplus', 'ominus', 'otimes', 'oslash', 'odot'}),
     "RELATION": (
         set("=<>,"),
-        {'ge', 'le', 'equiv', 'cong', 'gg', 'll', 'doteq', 'sim', 'simeq', 'approx', 'ne'}),
+        {'implies', 'ge', 'le', 'equiv', 'cong', 'gg', 'll', 'doteq', 'sim', 'simeq', 'approx', 'ne'}),
     "SYMBOL": (
         set("'.:;|@&#\""),
-        {'int', 'sum', 'prod', 'Gamma', 'implies', 'Delta', 'Lambda', 'Phi', 'Pi', 'Psi', 'Sigma', 'Theta', 'Upsilon', 'Xi', 'Omega', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega', 'digamma', 'varepsilon', 'varkappa', 'varphi', 'varpi', 'varrho', 'varsigma', 'vartheta', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'triangle', 'triangledown', 'sharp', 'infty', 'diamondsuit', 'bigstar', 'blacksquare', 'blacktriangle', 'blacktriangledown', 'varnothing', 'backslash', '#', '$', '&'})}
+        {'int', 'sum', 'prod', 'Gamma', 'Delta', 'Lambda', 'Phi', 'Pi', 'Psi', 'Sigma', 'Theta', 'Upsilon', 'Xi', 'Omega', 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega', 'digamma', 'varepsilon', 'varkappa', 'varphi', 'varpi', 'varrho', 'varsigma', 'vartheta', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'aleph', 'beth', 'daleth', 'gimel', 'complement', 'ell', 'eth', 'hbar', 'hslash', 'mho', 'partial', 'wp', 'circledS', 'Bbbk', 'Finv', 'Game', 'Im', 'Re', 'triangle', 'triangledown', 'sharp', 'infty', 'diamondsuit', 'bigstar', 'blacksquare', 'blacktriangle', 'blacktriangledown', 'varnothing', 'backslash', '#', '$', '&'})}
 BRACKET_PAIRS = Njective_static_map(
      ("name"               , "left"  , "right"),
     (('CLOSURE_CURLY'      , '{'     , '}'),
@@ -71,6 +94,7 @@ BRACKET_PAIRS = Njective_static_map(
      ('CLOSURE_ANGLE'      , 'langle', 'rangle'),
      ('CLOSURE_DBL_VERT'   , 'lVert' , 'rVert')))
 
+LETTERS, NUMBERS = string.ascii_letters, string.digits
 ONE_CHAR_SYMBOLS, SYMBOLS = (reduce(set.__or__, (s[n] for s in SYMBOL_MAP.values())) for n in (0,1))
 def match_symbol_type(symbol, n=0):
     for k, v in SYMBOL_MAP.items():
@@ -153,10 +177,10 @@ def SCAN_NUMBER(content):
     else:
         return Holder("NUMBER", [buf])
 
-def SCAN_VARIABLE(content):
+def SCAN_VAR(content):
     # technically two implmentations can be done here, ill use the one latex wants me to use but multi-letter variable names could be implemented here
     assert content.peek() in LETTERS
-    return Holder("VARIABLE", [content.next()])
+    return Holder("VAR", [content.next()])
 
 # creates a scope that automatically collects N latex args
 def N_ARG_GENERATOR(name, N, content, func):
@@ -173,7 +197,7 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
             contain_scope += SCAN_NUMBER(content)
             continue
         if c in LETTERS:
-            contain_scope += SCAN_VARIABLE(content)
+            contain_scope += SCAN_VAR(content)
             continue
         if c == '_':
             content.next() # throw away delimiter
@@ -298,24 +322,29 @@ def compile_latex(s):
     raise NotImplementedError(f'Unable to parse type "{name}"')
 
 if __name__ == "__main__":
-    # t = r"""r"2\cdot2+2-x_{2}\ast2^{2}")"""
-    # t = r"""-\int_{ }^{ }\frac{1}{x\sqrt{1-x^{2}}}d_{x}\circ\cos\left(x\right)"""
-    # t = r"""\overline{dasdasd}"""
-    # t = r"""\int_{ }^{ }-\frac{x}{\sqrt{1-x^{2}}}\frac{1}{\sqrt{1-x^{2}}\sqrt{1-\left(\sqrt{1-x^{2}}\right)^{2}}}d_{x}"""
-    # t = r"""x=-1:\ A=-\frac{1}{2}"""
-    # t = r"""\frac{1}{2}\left(x-\frac{1}{4}\ln\left(\frac{\left|-1+\sin\left(2x\right)\right|}{\left|1+\sin\left(2x\right)\right|}\right)\right)"""
-    # t = r"""f\left(x,y\right)=-\max\left(-\left(\left(0.4\left(x+2.5\right)\right)^{2}+10\left(2\left(y-0.6\right)+\frac{\sin\left(4\left(2x+2\right)\cdot0.4\right)}{4}\right)^{2}-1\right),-\left(\left(x-1.7\right)^{2}+\left(y-2.2-\frac{\sin\left(\left|x-2.3\right|\right)}{2}\right)^{2}-1\right),-\min\left(\min\left(\left(\left|2\left(y+3.5\right)+\left|\left(x-2.5\right)\right|\right|+\left|\left(x-2.5\right)\right|-1\right),\max\left(0.8\left|\left(x-2.5\right)\right|,0.15\left|\left(y+3.5\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+4\right)+\left|\left(x-\frac{2.9}{3}\right)\right|\right|+\left|\left(x-\frac{2.9}{3}\right)\right|-1\right),\max\left(0.8\left|\left(x-\frac{2.9}{3}\right)\right|,0.15\left|\left(y+4\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+4\right)+\left|\left(x+2.5\right)\right|\right|+\left|\left(x+2.5\right)\right|-1\right),\max\left(0.8\left|\left(x+2.5\right)\right|,0.15\left|\left(y+4\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+3.5\right)+\left|\left(x+\frac{2.9}{3}\right)\right|\right|+\left|\left(x+\frac{2.9}{3}\right)\right|-1\right),\max\left(0.8\left|\left(x+\frac{2.9}{3}\right)\right|,0.15\left|\left(y+3.5\right)-2\right|\right)-0.3\right)\right),-\left(0.3x^{2}+0.25y^{4}-2^{2}\right),-\left(\left(x-3\right)^{2}+\left(y-0.5-\frac{x}{3}\right)^{2}-3\right)\left(\left(x-3.6\right)^{2}+\left(y-2.75\right)^{2}-0.3^{2}\right),-\left(0.2\left(x-5.8\right)^{2}+\left(3\left(y-\frac{x}{3}-1\right)+\sin\left(2x\right)\right)^{2}-0.75\right)\right)-0.08"""
-    # t = r"""\sqrt[5]{x}"""
-    # t = r"""!das\backslash d\cdot\&"""
-    # t = r"""\int_{0^{-1}}^{x^{x^{x^{x^{x\sum_{n=0}^{10}n}}}}}x_{d}"""
-    # t = r"""\sqrt[\sqrt{2}]{2^{e^{\ln\left(2\right)}}}"""
-    # t = r"""\max\left(\left|x-p.x\right|,\left|y-p.y\right|\right)\le1"""
-    # t = r"""\left(-1\right)^{k}\int_{ }^{\lambda}d_{\gamma}f_{k}\left(\gamma\right)\left(\frac{d^{k}}{d\gamma^{k}}\left(\lambda-\gamma\right)^{n}\right)"""
-    # t = r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)"""
-    # t = r"""t\left(x,y,a,a_{x},a_{y},s_{x},s_{y}\right)=\left(\frac{\cos\left(a\right)\left(x-a_{x}\right)+\sin\left(a\right)\left(y-a_{y}\right)}{s_{x}},\frac{\cos\left(a\right)\left(y-a_{y}\right)-\sin\left(a\right)\left(x-a_{x}\right)}{s_{y}}\right)"""
-    # t = r"x_{r}.y"
-    # t = r"""x\text{dasd\backslash \backslash asd \backslash\{\}\backslash as \backslash\}\{|\backslash}x"""
-    t = r"""\binom{x^{2}}{y^{2}}^{2}"""
-    r = parse_latex(t)
-    print(r)
-    print(compile_latex(r))
+    TESTS = [
+        r"""2\cdot2+2-x_{2}\ast2^{2}""",
+        r"""-\int_{ }^{ }\frac{1}{x\sqrt{1-x^{2}}}d_{x}\circ\cos\left(x\right)""",
+        r"""\overline{dasdasd}""",
+        r"""\int_{ }^{ }-\frac{x}{\sqrt{1-x^{2}}}\frac{1}{\sqrt{1-x^{2}}\sqrt{1-\left(\sqrt{1-x^{2}}\right)^{2}}}d_{x}""",
+        r"""x=-1:\ A=-\frac{1}{2}""",
+        r"""\frac{1}{2}\left(x-\frac{1}{4}\ln\left(\frac{\left|-1+\sin\left(2x\right)\right|}{\left|1+\sin\left(2x\right)\right|}\right)\right)""",
+        r"""f\left(x,y\right)=-\max\left(-\left(\left(0.4\left(x+2.5\right)\right)^{2}+10\left(2\left(y-0.6\right)+\frac{\sin\left(4\left(2x+2\right)\cdot0.4\right)}{4}\right)^{2}-1\right),-\left(\left(x-1.7\right)^{2}+\left(y-2.2-\frac{\sin\left(\left|x-2.3\right|\right)}{2}\right)^{2}-1\right),-\min\left(\min\left(\left(\left|2\left(y+3.5\right)+\left|\left(x-2.5\right)\right|\right|+\left|\left(x-2.5\right)\right|-1\right),\max\left(0.8\left|\left(x-2.5\right)\right|,0.15\left|\left(y+3.5\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+4\right)+\left|\left(x-\frac{2.9}{3}\right)\right|\right|+\left|\left(x-\frac{2.9}{3}\right)\right|-1\right),\max\left(0.8\left|\left(x-\frac{2.9}{3}\right)\right|,0.15\left|\left(y+4\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+4\right)+\left|\left(x+2.5\right)\right|\right|+\left|\left(x+2.5\right)\right|-1\right),\max\left(0.8\left|\left(x+2.5\right)\right|,0.15\left|\left(y+4\right)-2\right|\right)-0.3\right),\min\left(\left(\left|2\left(y+3.5\right)+\left|\left(x+\frac{2.9}{3}\right)\right|\right|+\left|\left(x+\frac{2.9}{3}\right)\right|-1\right),\max\left(0.8\left|\left(x+\frac{2.9}{3}\right)\right|,0.15\left|\left(y+3.5\right)-2\right|\right)-0.3\right)\right),-\left(0.3x^{2}+0.25y^{4}-2^{2}\right),-\left(\left(x-3\right)^{2}+\left(y-0.5-\frac{x}{3}\right)^{2}-3\right)\left(\left(x-3.6\right)^{2}+\left(y-2.75\right)^{2}-0.3^{2}\right),-\left(0.2\left(x-5.8\right)^{2}+\left(3\left(y-\frac{x}{3}-1\right)+\sin\left(2x\right)\right)^{2}-0.75\right)\right)-0.08""",
+        r"""\sqrt[5]{x}""",
+        r"""!das\backslash d\cdot\&""",
+        r"""\int_{0^{-1}}^{x^{x^{x^{x^{x\sum_{n=0}^{10}n}}}}}x_{d}""",
+        r"""\sqrt[\sqrt{2}]{2^{e^{\ln\left(2\right)}}}""",
+        r"""\max\left(\left|x-p.x\right|,\left|y-p.y\right|\right)\le1""",
+        r"""\left(-1\right)^{k}\int_{ }^{\lambda}d_{\gamma}f_{k}\left(\gamma\right)\left(\frac{d^{k}}{d\gamma^{k}}\left(\lambda-\gamma\right)^{n}\right)""",
+        r"""\frac{1}{n!}\int_{ }^{t}d_{\gamma}\left(t-\gamma\right)^{n}f\left(\gamma\right)""",
+        r"""t\left(x,y,a,a_{x},a_{y},s_{x},s_{y}\right)=\left(\frac{\cos\left(a\right)\left(x-a_{x}\right)+\sin\left(a\right)\left(y-a_{y}\right)}{s_{x}},\frac{\cos\left(a\right)\left(y-a_{y}\right)-\sin\left(a\right)\left(x-a_{x}\right)}{s_{y}}\right)""",
+        r"""x_{r}.y""",
+        r"""x\text{dasd\backslash \backslash asd \backslash\{\}\backslash as \backslash\}\{|\backslash}x""",
+        r"""\binom{x^{2}}{y^{2}}^{2}""",
+        r"""2\left(\frac{1}{2}\left(\sqrt{x}\left(\sqrt{x}\sin^{-1}\left(\sqrt{x}\right)+\sqrt{1-\sqrt{x}^{2}}\right)-\left(-\frac{1}{2}\left(\cos^{-1}\left(\sqrt{x}\right)-\frac{1}{2}\sin\left(2\cos^{-1}\left(\sqrt{x}\right)\right)\right)\right)\right)\right)"""
+    ]
+    
+    for test in TESTS:
+        p = parse_latex(test)
+        c = compile_latex(p)
+        print(f"{test} 🠒 {p} 🠒 {c}")
