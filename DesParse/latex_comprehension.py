@@ -234,7 +234,8 @@ if __name__ == "__main__":
     # t = r"""3!"""
     # t = r"""\sin\left(x\right)^{2}"""
     # t = r"""\cos^{2}\left(x\right)"""
-    t = r"""\min\left(a,b,f\left(x\right)^{2},2+\cos\left(2,bx^{2}\right)\right)^{2}"""
+    # t = r"""\min\left(a,b,f\left(x\right)^{2},2+\cos\left(2,bx^{2}\right)\right)^{2}"""
+    t = r"""c=\sqrt{\frac{B}{p_{0}\equiv_{\text{density}}}}\text{(B=bulk modulus:}\frac{P}{ΔV\text{/}V}\ _{\text{(Inverse of compression)}}\text{)}"""
     q = Parser(t, print_steps=True)
     print(q.pretty())
     print(compile_latex(q))

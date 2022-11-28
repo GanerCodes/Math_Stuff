@@ -263,8 +263,11 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
             assert not alternate_exit # we found a closing when not looking for one
             content.next() # throws out closing
             break
+
+        # adds any unknown symbols as just a single symbol
+        contain_scope += Holder("SYMBOL", [content.next()])
         
-        raise NotImplementedError(f'Unable to parse symbol "{c}"')
+        # raise NotImplementedError(f'Unable to parse symbol "{c}"')
     
     return contain_scope
 
@@ -302,7 +305,9 @@ def compile_latex(s):
         elif args[0] in t[1]:
             return f"\\{args[0]}"
         else:
-            raise ValueError(f"Unable to match symbol {args[0]}!")
+            return args[0] # for the case of mostly random unicode symbols
+            
+            # raise ValueError(f"Unable to match symbol {args[0]}!")
     
     if name in BRACKET_PAIRS['name']:
         pair = BRACKET_PAIRS['name'][name]

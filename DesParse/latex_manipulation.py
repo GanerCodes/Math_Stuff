@@ -61,12 +61,31 @@ def merge_terms(content):
             t.append(Holder("OPERATOR", ['+']))
     return t
 
+def decouple_useless_parenthesis(content):
+    l = []
+    while c := content.peek():
+        if c.name == "CLOSURE_PARENTHESIS":
+            if len(c.data) == 1:
+                l += content.next().data
+                continue
+            if len(c.data) == 2:
+                fst = c.data[0]
+                if fst.name == "OPERATOR" and fst.data[0] == '-':
+                    l += content.next().data
+                    continue
+            
+        l.append(content.next())
+    return l
+
 if __name__ == "__main__":
-    t = r"""5x-2+2y+4-x^{2}"""
+    # t = r"""5x-2+2y+4-x^{2}"""
+    t = r"2+x-5x--x^{2}+y^{2x}"
     q = Parser(t)
     q = Peekable(q.data)
-    q = join_like_terms(q).items()
-    q = Peekable(list(q))
+    q = decouple_useless_parenthesis(q)
+    q = Peekable(q)
+    q = list(join_like_terms(q).items())
+    q = Peekable(q)
     q = merge_terms(q)
     print(q)
     print(compile_latex(q))
