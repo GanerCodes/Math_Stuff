@@ -61,8 +61,7 @@ class Parser:
         content, scope = cls.format_args(content, scope)
         CHECKERS = CHECKERS or cls.CHECKERS
         
-        while c := content.peek():
-            name, data = c
+        for name, data in content.peeks():
             for checker in cls.CHECKERS:
                 checker = getattr(cls, checker)
                 if check := checker(name, data, content):
@@ -91,8 +90,8 @@ class PassZero(Parser):
         
         first, lower, upper = TAKE_N(content, 3)
         body = Holder()
-        while p := content.peek():
-            if p.name == "RELATION" or (p.name == "OPERATOR" and p.data[0] in SPLIT_OPERATORS):
+        for name, data in content.peeks():
+            if name == "RELATION" or (name == "OPERATOR" and data[0] in SPLIT_OPERATORS):
                 break
             body += content.next()
         return cls.ITERABLE_CHECKER("ITERABLE", [first, lower, upper, body], None)
@@ -180,10 +179,10 @@ class FunctionCallPass(DumbFunctionPass):
             new_params = Holder(func_params.name)
             
             it = Peekable(func_params.data)
-            while c := it.peek():
+            while it:
                 buffer = []
-                while d := it.peek():
-                    if d.name == "RELATION" and d.data[0] == ',':
+                for name, data in it.peeks():
+                    if name == "RELATION" and data[0] == ',':
                         break
                     buffer.append(it.next())
                 new_params += [Holder("FUNC_ARGUMENT", buffer)]

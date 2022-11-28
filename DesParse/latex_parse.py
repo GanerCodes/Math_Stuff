@@ -64,6 +64,8 @@ class Peekable:
         return str(self.s)
     def __len__(self):
         return len(self.s)
+    def __bool__(self):
+        return bool(len(self))
     def next(self):
         if not len(self.s): return
         r, self.s = self.s[0], self.s[1:]
@@ -71,6 +73,12 @@ class Peekable:
     def peek(self, n=0):
         if len(self.s) <= n: return
         return self.s[n]
+    def peeks(self):
+        while len(self):
+            yield self.peek()
+    def nexts(self):
+        while len(self):
+            yield self.next()
 
 ONE_ARG_FUNCS = {'overline', 'underline', 'operatorname', 'sqrt'} # add more
 TWO_ARG_FUNCS = {'frac', 'binom', 'sqrt'} # add more?
@@ -105,9 +113,9 @@ def match_symbol_type(symbol, n=0):
 
 def SCAN_WORD(content): # \stuff
     buf = ""
-    while c := content.peek():
+    for c in content.peeks():
         if c not in LETTERS:
-            while s := content.peek(): # loop to remove spaces
+            for s in content.peeks(): # loop to remove spaces
                 if s != ' ':
                     break
                 content.next()
@@ -119,7 +127,7 @@ def SCAN_TEXT(content): # \text{} starting at the end of \text
     assert content.next() == '{'
     
     buf = ""
-    while c := content.peek():
+    for c in content.peeks():
         if c == '\\':
             content.next() # throw away backslash
             if content.peek() in '{}':
@@ -146,7 +154,7 @@ def PARSE_TEXT(text): # Deals with desmos unlocked jank
     
     buf = ''
     recurse = False
-    while c := text.peek():
+    for c in text.peeks():
         if c in '{}':
             buf += "⦃⦄"[text.next() == '}'] # reeee
             continue
@@ -164,7 +172,7 @@ def PARSE_TEXT(text): # Deals with desmos unlocked jank
 
 def SCAN_NUMBER(content):
     buf, has_decimal = "", False
-    while c := content.peek():
+    for c in content.peeks():
         if c in NUMBERS:
             buf += content.next()
         elif c == '.':
@@ -193,7 +201,7 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
     if alternate_exit is None:
         assert content.next() == scanpair[0] # throws out opening
     
-    while c := content.peek():
+    for c in content.peeks():
         if c in NUMBERS or c == '.':
             contain_scope += SCAN_NUMBER(content)
             continue

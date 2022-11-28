@@ -16,31 +16,31 @@ def seperate_types(terms, *types):
 # 🠒 coeff, term
 def collect_linear_term(content):
     number = 1
-    while c := content.peek():
-        if c.name != "OPERATOR": break
-        if c.data[0] not in {'-', '+'}: break
-        if c.data[0] == '-':
+    for name, data in content.peeks():
+        if name != "OPERATOR": break
+        if data[0] not in {'-', '+'}: break
+        if data[0] == '-':
             number *= -1
         content.next()
     
     term = []
-    while c := content.peek():
-        if c.name == "OPERATOR" and c.data[0] in {'-', '+'}:
+    for name, data in content.peeks():
+        if name == "OPERATOR" and data[0] in {'-', '+'}:
             break
-        if c.name == "NUMBER":
-            number *= float(c.data[0])
+        if name == "NUMBER":
+            number *= float(data[0])
             content.next()
             continue
         term.append(content.next())
     
-    if abs(number - int(number)) < (10**-15):
+    if abs(number - int(number)) < 10**-15:
         number = int(number)
     
     return number, term
 
 def join_like_terms(content, terms=None):
     terms = terms or {}
-    while c := content.peek():
+    while content:
         num, term = collect_linear_term(content)
         term = Holder(data=sorted(term))
         ins_add(terms, term, num)
@@ -48,8 +48,7 @@ def join_like_terms(content, terms=None):
 
 def merge_terms(content):
     t = []
-    while c := content.next():
-        term, coeff = c
+    for term, coeff in content.nexts():
         if coeff < 0:
             coeff *= -1
             t.append(Holder("OPERATOR", ['-']))
@@ -63,13 +62,13 @@ def merge_terms(content):
 
 def decouple_useless_parenthesis(content):
     l = []
-    while c := content.peek():
-        if c.name == "CLOSURE_PARENTHESIS":
-            if len(c.data) == 1:
+    for name, data in content.peeks():
+        if name == "CLOSURE_PARENTHESIS":
+            if len(data) == 1:
                 l += content.next().data
                 continue
-            if len(c.data) == 2:
-                fst = c.data[0]
+            if len(data) == 2:
+                fst = data[0]
                 if fst.name == "OPERATOR" and fst.data[0] == '-':
                     l += content.next().data
                     continue
