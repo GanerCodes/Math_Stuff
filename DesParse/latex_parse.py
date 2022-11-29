@@ -80,7 +80,7 @@ class Peekable:
         while len(self):
             yield self.next()
 
-ONE_ARG_FUNCS = {'overline', 'underline', 'operatorname', 'sqrt'} # add more
+ONE_ARG_FUNCS = {'overline', 'underline', 'sqrt'} # add more
 TWO_ARG_FUNCS = {'frac', 'binom', 'sqrt'} # add more?
 PSEUDO_CLOSURES = {'', 'VAR', 'NUMBER', 'VARIABLE', 'ITERABLE', 'EXPONENTIAL', 'RIGHT_UNARY_COUPLE', 'FUNCEXP', 'FUNC_CALL', 'FUNC_ARGUMENT'}
 SYMBOL_MAP = {
@@ -245,6 +245,11 @@ def TOP(content, contain_scope, alternate_exit=None, scanpair='{}'):
                 contain_scope += SCAN_TEXT(content)
                 continue
             
+            if word == "operatorname":
+                inner_name = SCAN_TEXT(content).data[0]
+                contain_scope += Holder("FUNCTION", [word, inner_name])
+                continue
+            
             if word in SYMBOLS:
                 contain_scope += Holder(match_symbol_type(word, 1), [word])
                 continue
@@ -303,7 +308,11 @@ def compile_latex(s):
     if name == "TEXT":
         return PARSE_TEXT(args[0])
     if name == "FUNCTION":
-        return f"\\{args[0]}"
+        assert 0 < len(args) < 3
+        if len(args) == 2:
+            return "\\%s{%s}" % tuple(args)
+        else:
+            return "\\{%s}" % args[0]
     if name == "superscript":
         return "^{%s}" % compile_latex(args)
     if name == "subscript":
@@ -317,8 +326,6 @@ def compile_latex(s):
             return f"\\{args[0]}"
         else:
             return args[0] # for the case of mostly random unicode symbols
-            
-            # raise ValueError(f"Unable to match symbol {args[0]}!")
     
     if name in BRACKET_PAIRS['name']:
         pair = BRACKET_PAIRS['name'][name]
