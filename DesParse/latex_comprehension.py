@@ -99,7 +99,7 @@ class PassZero(Parser):
     @classmethod
     def VARIABLE_CHECKER(cls, name, data, content):
         if name not in {"VAR", "SYMBOL"}: return
-        VARIABLE = Holder("VARIABLE", [content.next()], hide_data=True)
+        VARIABLE = Holder("VARIABLE", [content.next()])
         
         if not (r := content.peek()): return VARIABLE
         if r.name == "subscript":
@@ -236,7 +236,10 @@ if __name__ == "__main__":
     # t = r"""\min\left(a,b,f\left(x\right)^{2},2+\cos\left(2,bx^{2}\right)\right)^{2}"""
     # t = r"""c=\sqrt{\frac{B}{p_{0}\equiv_{\text{density}}}}\text{(B=bulk modulus:}\frac{P}{ΔV\text{/}V}\ _{\text{(Inverse of compression)}}\text{)}"""
     # t = r"""\operatorname{mod}\left(x,2\right)^{2}"""
-    t = r"""\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}"""
+    # t = r"""f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}"""
+    # t = r"""f\left(x\right)+\sin\left(x\right)+\operatorname{mod}\left(x,2\right)+\sin^{-1}\left(x\right)+\tan_{2}\left(x\right)+\tan_{2}^{2}\left(x\right)+\operatorname{mod}^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x\right)"""
+    # t = r"""f_{2}\left(x\right)"""
+    t = r"""f.x_{22}.y_{2dasdds2}\left(2\right)"""
     q = Parser(t, print_steps=True)
     print(q.pretty())
     print(compile_latex(q))

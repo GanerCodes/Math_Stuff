@@ -15,7 +15,6 @@ x³y
 
 🠒10x³y
 
-
 num = 1
 match_check(['OPERATOR': ['-']])
 
@@ -23,18 +22,9 @@ OPERATOR['']|RELATION
 
 -5x²y2x
 
-
-class Term
-
 class Commutative_Set:
     { Expressions }
 class Associative_Set:
     [ Expressions ]
     
-    
 
-EXPO [base[], exponent[]]
-TERM [children[]]
-FRAC [top[] bottom[]]
-OPEN []
-HOLD []
