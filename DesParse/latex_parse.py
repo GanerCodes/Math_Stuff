@@ -302,6 +302,8 @@ def compile_latex(s):
         for a in args:
             if r and r[-1] in LETTERS and a and a[0] in LETTERS:
                 r += ' '
+            elif r and r[-1] in NUMBERS and a and a[0] in NUMBERS:
+                r += '\\cdot'
             r += a
         return r
     

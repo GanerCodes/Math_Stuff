@@ -22,6 +22,11 @@ def CHECK_SEQUENCE(content, *names):
         return
     return r
 
+def match_user_function(symb):
+    if symb.name == "VARIABLE":
+        if symb.data[0].data[0] in {'f', 'g', 'h'}:
+            return True
+
 class Parser:
     CHAIN = []
     
@@ -124,11 +129,17 @@ class PassZero(Parser):
     
     @classmethod
     def CLOSURE_CHECKER(cls, name, data, content):
-        if name not in BRACKET_PAIRS['name'] and name != '': return
+        if not (name == '' or name in BRACKET_PAIRS['name']): return
         
         return cls.PARSE_INNER(content.next())
     
-    CHECKERS = ('ITERABLE_CHECKER', 'VARIABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER')
+    @classmethod
+    def SCRIPT_CHECKER(cls, name, data, content):
+        if name not in {'subscript', 'superscript'}: return
+        
+        return cls.PARSE_INNER(content.next())
+    
+    CHECKERS = ('ITERABLE_CHECKER', 'SCRIPT_CHECKER', 'VARIABLE_CHECKER', 'CLOSURE_CHECKER', 'FUNC_CHECKER')
 
 class DumbFunctionPass(PassZero):
     @classmethod
@@ -154,11 +165,6 @@ class DumbFunctionPass(PassZero):
 #         'FUNCEXP', 'VARIABLE', 'SUPERSCRIPT'
 
 class FunctionCallPass(DumbFunctionPass):
-    def match_user_function(symb):
-        if symb.name == "VARIABLE":
-            if symb.data[0].data[0] in {'f', 'g', 'h'}:
-                return True
-    
     @classmethod
     def FUNCTION_CALL_CHECKER(cls, name, data, content):
         if name == "FUNC_CALL":
@@ -174,7 +180,7 @@ class FunctionCallPass(DumbFunctionPass):
         
         if not (content.peek(1) and content.peek(1).name == "CLOSURE_PARENTHESIS"): return
         
-        if name == "FUNCEXP" or cls.match_user_function(content.peek()):
+        if name == "FUNCEXP" or match_user_function(content.peek()):
             func, func_params = TAKE_N(content, 2)
             new_params = Holder(func_params.name)
             
@@ -241,7 +247,9 @@ if __name__ == "__main__":
     # t = r"""f_{2}\left(x\right)"""
     # t = r"""f.x_{22}.y_{2dasdds2}\left(2\right)"""
     # t = r"""\lambda+2"""
-    t = r"""2+\left(f\left(x,y\right)\right)^{2}-5x^{2y+2^{2}}+f\left(x,y\right)"""
+    # t = r"""2+\left(f\left(x,y\right)\right)^{2}-5x^{2y+2^{2}}+f\left(x,y\right)"""
+    # t = r"""\sqrt{x}+\sqrt[3]{x}"""
+    t = r"""\sin\left(2!,2\right)+\left(\sqrt{x}+\frac{\sqrt[3]{x}}{2}\right)^{2}-2\left(2!\right)\left(x^{y^{z}}\right)!\lambda^{2x\phi}f_{22}.x\left(2\right)"""
     q = Parser(t, print_steps=True)
     print(q.pretty())
     print(compile_latex(q))
