@@ -239,7 +239,9 @@ if __name__ == "__main__":
     # t = r"""f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}"""
     # t = r"""f\left(x\right)+\sin\left(x\right)+\operatorname{mod}\left(x,2\right)+\sin^{-1}\left(x\right)+\tan_{2}\left(x\right)+\tan_{2}^{2}\left(x\right)+\operatorname{mod}^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x\right)"""
     # t = r"""f_{2}\left(x\right)"""
-    t = r"""f.x_{22}.y_{2dasdds2}\left(2\right)"""
+    # t = r"""f.x_{22}.y_{2dasdds2}\left(2\right)"""
+    # t = r"""\lambda+2"""
+    t = r"""2+\left(f\left(x,y\right)\right)^{2}-5x^{2y+2^{2}}+f\left(x,y\right)"""
     q = Parser(t, print_steps=True)
     print(q.pretty())
     print(compile_latex(q))

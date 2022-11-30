@@ -1,35 +1,41 @@
-from latex_comprehension import Parser, Holder
+from latex_comprehension import Parser, Holder, Peekable, BRACKET_PAIRS
 
 class Term:
     pass
 
-# integrals, parenthesis, functions, etc.; stuff that holds things
 class Closure(Term):
     def __init__(self, terms=None):
         self.terms = terms or []
     def __iter__(self):
         return iter(self.terms)
-    def __str__(self):
+    def __repr__(self):
         return "{%s}" % (', '.join(map(str, self.terms)))
 
 class Commutative_set(Closure):
     pass
 class PARENTHESIS(Commutative_set):
-    def __str__(self):
+    def __repr__(self):
         return "(%s)" % (', '.join(map(str, self.terms)))
 class PRODUCT(Commutative_set):
-    def __str__(self):
+    def __repr__(self):
         return '*'.join(map(str, self.terms))
 
 class NUMBER(Term):
     def __init__(self, number=1):
+        if isinstance(number, str):
+            if abs(
+                (fN:=float(number)) - (iN:=int(number))
+                    ) < 10 ** -15:
+                number = iN
+            else:
+                number = fN
         self.number = number
-    def __str__(self):
+    def __repr__(self):
         return str(self.number)
 class VARIABLE(Term):
     def __init__(self, variable):
         self.variable = variable
-    def __str__(self):
+    def __repr__(self):
         return str(self.variable)
 
 class FUNCTION(Term):
@@ -38,7 +44,7 @@ class FUNCTION(Term):
         self.args = args or []
     def __iter__(self):
         return iter(self.args)
-    def __str__(self):
+    def __repr__(self):
         return f"{self.name}({', '.join(map(str, self.args))})"
 class FRACTION(Term):
     def __init__(self, top=None, bottom=None):
@@ -46,7 +52,7 @@ class FRACTION(Term):
         self.bottom = bottom or NUMBER()
     def __iter__(self):
         return iter((self.top, self.bottom))
-    def __str__(self):
+    def __repr__(self):
         return f"({self.top})/({self.bottom})"
 class EXPONENT(Term):
     def __init__(self, base=None, exp=None):
@@ -54,7 +60,7 @@ class EXPONENT(Term):
         self.exp = exp or NUMBER()
     def __iter__(self):
         return iter((self.base, self.exp))
-    def __str__(self):
+    def __repr__(self):
         return f"{self.base}**({self.exp})"
 
 class Comp_Parser:
@@ -77,8 +83,8 @@ class Comp_Parser:
             if i.name == "VAR":
                 s += i.data[0]
                 continue
-            if i.name == "SYMBOL" and i.data[0] == ".":
-                s += '.'
+            if i.name == "SYMBOL":
+                s += i.data[0]
                 continue
             if i.name == "NUMBER":
                 s += i.data[0]
@@ -109,7 +115,8 @@ class Comp_Parser:
     
     @classmethod
     def parse_function_call(cls, func, close):
-        args = cls.group_by_type(close, "FUNC_ARG")
+        args = cls.parse_list(cls.group_by_type(close, "FUNC_ARGUMENT"))
+        print(close)
         if func.name == "VARIABLE":
             return FUNCTION(cls.clean_name(func), args)
         if func.name == "FUNCEXP":
@@ -140,16 +147,81 @@ class Comp_Parser:
         assert 0
     
     @classmethod
+    def parse_list(cls, l):
+        return list(map(cls.parse, l))
+    
+    @classmethod
+    def parse_product(cls, l): # 🠒 PRODUCT
+        if not isinstance(l, Peekable):
+            l = Peekable(l)
+        
+        negative = None
+        for name, data in l.peeks():
+            if name == "OPERATOR" and data[0] in {'-', '+'}:
+                if data[0] == '-':
+                    negative = None if negative else -1
+                l.next()
+            else:
+                break
+        
+        r = []
+        for c in l.peeks():
+            name, data = c
+            if name == "OPERATOR":
+                if data[0] in {'-', '+'}:
+                    break
+            else:
+                r.append(
+                    cls.parse(
+                        l.next()))
+        
+        if negative:
+            r.append(
+                NUMBER(-1))
+            
+        return PRODUCT(r)
+    
+    @classmethod
+    def parse_sequence(cls, l):
+        if not isinstance(l, Peekable):
+            l = Peekable(l)
+        
+        terms = []
+        while l:
+            terms.append(
+                cls.parse_product(l))
+        return terms
+    
+    @classmethod
     def parse(cls, comp):
         name, data = comp
-        if not name:
-            return
-            # return Commutative_set(list(map(parse_from_comp, data)))
-        if name == "FUNC_CALL":
-            return cls.parse_function_call(*data)
+        match name:
+            case ''|"superscript"|"FUNC_ARGUMENT":
+                return cls.parse_sequence(data)
+            case 'CLOSURE_PARENTHESIS':
+                return PARENTHESIS(
+                    cls.parse_sequence(data))
+            case "FUNC_CALL":
+                return cls.parse_function_call(*data)
+            case "NUMBER":
+                return NUMBER(data[0])
+            case "VARIABLE":
+                return VARIABLE(cls.clean_var_name(comp))
+            case "EXPONENTIAL":
+                assert len(data) == 2
+                return EXPONENT(
+                    cls.parse(data[0]),
+                    cls.parse(data[1]))
+            case "RIGHT_UNARY_COUPLE"|"ITERABLE"|"RELATION":
+                raise NotImplementedError()
+            case "OPERATOR":
+                raise ValueError("why is an opERATOR here")
+            case _:
+                assert 0
 
 if __name__ == "__main__":
-    t = r"""f.x_{22}.y_{2dasdds2}\left(2\right)"""
+    t = r"""\left(f\left(x,y\right)+2\right)^{2}"""
     q = Parser(t)
-    print(Comp_Parser(q.data[0]))
+    print(q.pretty())
+    print(Comp_Parser(q))
     
