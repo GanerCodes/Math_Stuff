@@ -42,11 +42,11 @@ class Commutative_set(Closure):
                     Holder("OPERATOR", ['+']))
         
         return Holder(data=new_dat)
+    def __repr__(self):
+        return "(%s)" % (' + '.join(map(str, self.terms)))
     # TODO: add communtative __eq__
         
 class PARENTHESIS(Commutative_set):
-    def __repr__(self):
-        return "(%s)" % (' + '.join(map(str, self.terms)))
     def unparse(self):
         p = super().unparse()
         p.name = "CLOSURE_PARENTHESIS"
@@ -135,7 +135,7 @@ class VARIABLE(Term):
                     continue
                 assert 0
             if i.name == "subscript":
-                s += f"<{VARIABLE.make_var_name(i)}>"
+                s += f"_<{VARIABLE.make_var_name(i)}>"
                 continue
             assert 0
         return s
@@ -399,7 +399,7 @@ if __name__ == "__main__":
     # t = r"""\left(x^{2}+y^{2}\right)\left(z+25+2-x+1\ 1\right)"""
     # t = r"""2+\frac{\sqrt[\left(\frac{2}{2}\right)^{2}]{\frac{2}{2}}}{2}"""
     # t = r"""\operatorname{mod}\left(x,2\right)^{2}+\sin^{2}\left(x\right)"""
-    t =  r"""f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}"""
+    t =  r"""\frac{f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}}{8x}"""
     print(t)
     print()
     print(q := Parser(t))
