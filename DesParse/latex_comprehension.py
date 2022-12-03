@@ -242,14 +242,15 @@ if __name__ == "__main__":
     # t = r"""\min\left(a,b,f\left(x\right)^{2},2+\cos\left(2,bx^{2}\right)\right)^{2}"""
     # t = r"""c=\sqrt{\frac{B}{p_{0}\equiv_{\text{density}}}}\text{(B=bulk modulus:}\frac{P}{ΔV\text{/}V}\ _{\text{(Inverse of compression)}}\text{)}"""
     # t = r"""\operatorname{mod}\left(x,2\right)^{2}"""
-    t = r"""f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}"""
+    # t = r"""f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}"""
     # t = r"""f\left(x\right)+\sin\left(x\right)+\operatorname{mod}\left(x,2\right)+\sin^{-1}\left(x\right)+\tan_{2}\left(x\right)+\tan_{2}^{2}\left(x\right)+\operatorname{mod}^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x\right)"""
     # t = r"""f_{2}\left(x\right)"""
     # t = r"""f.x_{22}.y_{2dasdds2}\left(2\right)"""
     # t = r"""\lambda+2"""
     # t = r"""2+\left(f\left(x,y\right)\right)^{2}-5x^{2y+2^{2}}+f\left(x,y\right)"""
     # t = r"""\sqrt{x}+\sqrt[3]{x}"""
-    # t = r"""\sin\left(2!,2\right)+\left(\sqrt{x}+\frac{\sqrt[3]{x}}{2}\right)^{2}-2\left(2!\right)\left(x^{y^{z}}\right)!\lambda^{2x\phi}f_{22}.x\left(2\right)"""
+    # t = r"""\sin\left(2!,2\right)+\left(\sqrt{x}+\frac{\sqrt[3]{x}}{2}\right)^{2}-2\left(2!\right)\left(x^{y^{z}}\right)!\lambda^{2x\phi}f_{22}.x\left(2\right)"""\
+    t = r"""\zeta\left(s\right)=\frac{1}{\Gamma\left(s\right)}\int_{0}^{\infty}\frac{x^{s-1}}{e^{x}-1}dx\zeta\left(s\right)=\frac{1}{\Gamma\left(s\right)}\int_{0}^{\infty}\frac{x^{s-1}}{e^{x}-1}dx\zeta\left(s\right)=\frac{1}{\Gamma\left(s\right)}\int_{0}^{\infty}\frac{x^{s-1}}{e^{x}-1}dx\zeta\left(s\right)=\frac{1}{\Gamma\left(s\right)}\int_{0}^{\infty}\frac{x^{s-1}}{e^{x}-1}dx\zeta\left(s\right)=\frac{1}{\Gamma\left(s\right)}\int_{0}^{\infty}\frac{x^{s-1}}{e^{x}-1}dx\zeta\left(s\right)=\frac{1}{\Gamma\left(s\right)}\int_{0}^{\infty}\frac{x^{s-1}}{e^{x}-1}dx"""
     q = Parser(t, print_steps=True)
     print(q.pretty())
     print(compile_latex(q))

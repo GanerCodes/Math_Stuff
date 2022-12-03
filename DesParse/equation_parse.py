@@ -15,7 +15,7 @@ class Closure(Term):
     def __iter__(self):
         return iter(self.terms)
     def __repr__(self):
-        return "{%s}" % (' + '.join(map(str, self.terms)))
+        return "{%s}" % (' | '.join(map(str, self.terms)))
     def __len__(self):
         return len(self.terms)
     def __getitem__(self, i):
@@ -24,11 +24,27 @@ class Closure(Term):
         if not super() == other:
             return False
         return list(self) == list(other)
-        
     def unparse_terms(self):
         return [c.unparse() for c in self]
 
 class Commutative_set(Closure):
+    def gather_terms(self):
+        r = {}
+        for t in self.terms:
+            r[t] = (r[t] + 1) if (t in r) else 1
+        return r
+    def __eq__(self, other):
+        if not isinstance(other, Commutative_set):
+            return False
+        return self.gather_terms() == other.gather_terms()
+    def __repr__(self):
+        return "(%s)" % (' # '.join(map(str, self.terms)))
+    def __hash__(self):
+        return 0
+
+class ADDITIVE(Commutative_set):
+    def __repr__(self):
+        return "⟨%s⟩" % (' + '.join(map(str, self.terms)))
     def unparse(self):
         dat = Peekable(self.unparse_terms())
         new_dat = []
@@ -42,11 +58,8 @@ class Commutative_set(Closure):
                     Holder("OPERATOR", ['+']))
         
         return Holder(data=new_dat)
-    def __repr__(self):
-        return "(%s)" % (' + '.join(map(str, self.terms)))
-    # TODO: add communtative __eq__
-        
-class PARENTHESIS(Commutative_set):
+
+class PARENTHESIS(ADDITIVE):
     def unparse(self):
         p = super().unparse()
         p.name = "CLOSURE_PARENTHESIS"
@@ -54,14 +67,17 @@ class PARENTHESIS(Commutative_set):
 
 class PRODUCT(Commutative_set):
     def __repr__(self):
-        return '*'.join(map(str, self.terms))
+        return f"<{('*'.join(map(str, self.terms)))}>"
     def unparse(self):
         num, A = 1, []
         for i in self.terms:
             if isinstance(i, NUMBER):
                 num *= i.number
             else:
-                A.append(i.unparse())
+                t = i.unparse()
+                if isinstance(i, ADDITIVE):
+                    t.name = "CLOSURE_PARENTHESIS"
+                A.append(t)
         
         r = Holder()
         if num < 0:
@@ -85,6 +101,8 @@ class NUMBER(Term):
         self.number = number
     def __repr__(self):
         return str(self.number)
+    def __hash__(self):
+        return hash(self.number)
     def __eq__(self, other):
         if type(self) != type(other):
             return False
@@ -104,6 +122,8 @@ class VARIABLE(Term):
         self.internal_structure = structure
     def __repr__(self):
         return str(self.variable)
+    def __hash__(self):
+        return hash(self.variable)
     def __eq__(self, other):
         if not super() == other:
             return False
@@ -111,7 +131,6 @@ class VARIABLE(Term):
     def make_var_name(dat):
         if dat.name == "FUNCTION":
             dat = Holder(data=[dat])
-        print(dat)
         
         s = ""
         for i in dat.data:
@@ -142,14 +161,12 @@ class VARIABLE(Term):
     def unparse(self):
         return self.internal_structure
 
-class FUNCTION(Term):
+class FUNCTION(Closure):
     def __init__(self, name, args=None):
         self.name = name
-        self.args = args or []
-    def __iter__(self):
-        return iter(self.args)
+        self.terms = args or []
     def __repr__(self):
-        return f"{self.name}({', '.join(map(str, self.args))})"
+        return f"{self.name}({', '.join(map(str, self.terms))})"
     def __eq__(self, other):
         if not super() == other:
             return False
@@ -159,12 +176,12 @@ class FUNCTION(Term):
     def unparse(self):
         if self.name == "factorial":
             return Holder("RIGHT_UNARY_COUPLE", [
-                Holder(data=[i.unparse() for i in self.args]),
+                Holder(data=[i.unparse() for i in self.terms]),
                 Holder("OPERATOR", ['!'])])
         
         new_args = Holder("CLOSURE_PARENTHESIS")
         
-        dat = Peekable(self.args)
+        dat = Peekable(self.terms)
         for i in dat.nexts():
             new_args += Holder("FUNC_ARGUMENT", [i.unparse()])
             if dat.peek():
@@ -174,49 +191,58 @@ class FUNCTION(Term):
             self.name.unparse(),
             new_args])
 
-class FRACTION(Term):
+class FRACTION(Closure):
     def __init__(self, top=None, bottom=None):
-        self.top = top or NUMBER()
-        self.bottom = bottom or NUMBER()
+        # Closure
+        self.terms = [top or NUMBER(), bottom or NUMBER()]
+    def top(self):
+        return self.terms[0]
+    def bottom(self):
+        return self.terms[1]
     def __iter__(self):
-        return iter((self.top, self.bottom))
+        return iter((self.top(), self.bottom()))
     def __repr__(self):
-        return f"frac({self.top}, {self.bottom})"
+        return f"frac({self.top()}, {self.bottom()})"
     def __eq__(self, other):
         if not super() == other:
             return False
-        return (self.top == other.top and self.bottom == other.bottom)
+        return (self.top() == other.top and self.bottom() == other.bottom)
     def unparse(self):
         return Holder("frac", [
-            Holder(data=[self.top.unparse()]),
-            Holder(data=[self.bottom.unparse()])])
+            Holder(data=[self.top().unparse()]),
+            Holder(data=[self.bottom().unparse()])])
 
-class EXPONENT(Term):
+class EXPONENT(Closure):
     def __init__(self, base=None, exp=None):
-        self.base = base or NUMBER()
-        self.exp = exp or NUMBER()
+        self.terms = [base or NUMBER(), exp or NUMBER(1)]
+    def base(self):
+        return self.terms[0]
+    def exp(self):
+        return self.terms[1]
     def __iter__(self):
-        return iter((self.base, self.exp))
+        return iter((self.base(), self.exp()))
     def __repr__(self):
-        return f"pow({self.base}, {self.exp})"
+        return f"pow({self.base()}, {self.exp()})"
     def __eq__(self, other):
         if not super() == other:
             return False
-        return (self.base == other.base and self.exp == other.exp)
+        return (self.base() == other.base and self.exp() == other.exp)
     def unparse(self):
-        if self.exp == FRACTION(NUMBER(1), NUMBER(2)):
+        if self.exp() == FRACTION(NUMBER(1), NUMBER(2)):
             return Holder("sqrt", [
-                Holder(data=[self.base])])
+                Holder(data=[self.base()])])
         return Holder(
             "EXPONENTIAL", [
                 Holder(
-                    data=[self.base.unparse()]),
+                    data=[self.base().unparse()]),
                 Holder(
                     "superscript",
-                    [self.exp.unparse()])])
+                    [self.exp().unparse()])])
 
 class Comp_Parser:
     def __new__(cls, comp):
+        if isinstance(comp, str):
+            comp = Parser(comp)
         return cls.parse(comp)
     
     @classmethod
@@ -302,8 +328,10 @@ class Comp_Parser:
         if mul < 0:
             r.append(
                 NUMBER(-1))
-            
-        return PRODUCT(r)
+        
+        if len(r) > 1:
+            return PRODUCT(r)
+        return r[0]
     
     @classmethod
     def parse_sqrt(cls, comp):
@@ -342,8 +370,6 @@ class Comp_Parser:
         while l:
             terms.append(
                 cls.parse_product(l))
-        if len(terms) == 1:
-            terms = terms[0]
         return terms
     
     @classmethod
@@ -360,7 +386,7 @@ class Comp_Parser:
                     return PARENTHESIS(s)
                 
                 if not isinstance(s, Term):
-                    s = Commutative_set(s)
+                    s = ADDITIVE(s)
                 return s
             case "FUNC_CALL":
                 return cls.parse_function_call(*data)
@@ -399,12 +425,12 @@ if __name__ == "__main__":
     # t = r"""\left(x^{2}+y^{2}\right)\left(z+25+2-x+1\ 1\right)"""
     # t = r"""2+\frac{\sqrt[\left(\frac{2}{2}\right)^{2}]{\frac{2}{2}}}{2}"""
     # t = r"""\operatorname{mod}\left(x,2\right)^{2}+\sin^{2}\left(x\right)"""
-    t =  r"""\frac{f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}}{8x}"""
+    # t =  r"""\frac{f\left(X\right)+\sin\left(x\right)+\cos^{2}\left(x\right)+\operatorname{mod}_{2}^{2}\left(x,2\right)^{2}}{8x}"""
+    # t = r"""\left(x\right)\left(y\right)+x^{2}y^{2}\left(x-y\right)"""
+    t = r"""x^{2}+\frac{\left(x^{2y}-2\right)^{2}}{10x-y\sin\left(\operatorname{mod}\left(x,2\right),y\right)}"""
     print(t)
     print()
-    print(q := Parser(t))
-    print()
-    print(k := Comp_Parser(q))
+    print(k := Comp_Parser(t))
     print()
     print(m := k.unparse())
     print()
