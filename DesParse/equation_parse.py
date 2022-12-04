@@ -5,6 +5,12 @@ def get_first_non_pseudo(c):
         c = c.data[0]
     return c
 
+def add_or_ins(d, v, n=1):
+    if v in d:
+        d[v] += n
+    else:
+        d[v] = n
+
 class Term:
     def __eq__(self, other):
         return type(self) == type(other)
@@ -21,26 +27,29 @@ class Closure(Term):
     def __getitem__(self, i):
         return self.terms[i]
     def __eq__(self, other):
-        if not super() == other:
-            return False
-        return list(self) == list(other)
+        return type(self) == type(other) and self.terms == other.terms
     def unparse_terms(self):
         return [c.unparse() for c in self]
 
 class Commutative_set(Closure):
-    def gather_terms(self):
-        r = {}
-        for t in self.terms:
-            r[t] = (r[t] + 1) if (t in r) else 1
-        return r
     def __eq__(self, other):
-        if not isinstance(other, Commutative_set):
-            return False
-        return self.gather_terms() == other.gather_terms()
+        return type(self) == type(other) and self.gather_terms() == other.gather_terms()
     def __repr__(self):
         return "(%s)" % (' # '.join(map(str, self.terms)))
     def __hash__(self):
         return 0
+    def gather_terms(self):
+        terms = {}
+        for v in self.terms:
+            if isinstance(v, NUMBER):
+                add_or_ins(terms, NUMBER(1), v.number)
+            elif isinstance(v, PRODUCT):
+                n, new_term = v.split_term()
+                if n:
+                    add_or_ins(terms, new_term, n)
+            else:
+                add_or_ins(terms, v)
+        return terms
 
 class ADDITIVE(Commutative_set):
     def __repr__(self):
@@ -57,27 +66,29 @@ class ADDITIVE(Commutative_set):
                 new_dat.append(
                     Holder("OPERATOR", ['+']))
         
-        return Holder(data=new_dat)
-
-class PARENTHESIS(ADDITIVE):
-    def unparse(self):
-        p = super().unparse()
-        p.name = "CLOSURE_PARENTHESIS"
-        return p
+        return Holder("CLOSURE_PARENTHESIS", data=new_dat)
 
 class PRODUCT(Commutative_set):
     def __repr__(self):
         return f"<{('*'.join(map(str, self.terms)))}>"
+    def split_term(self): # 🠒 (num, product|number)
+        n, new_term = 1, []
+        for k in self.terms:
+            if isinstance(k, NUMBER):
+                n *= k.number
+            else:
+                new_term.append(k)
+        
+        if new_term:
+            return n, PRODUCT(new_term)
+        return n, NUMBER(1)
     def unparse(self):
         num, A = 1, []
         for i in self.terms:
             if isinstance(i, NUMBER):
                 num *= i.number
             else:
-                t = i.unparse()
-                if isinstance(i, ADDITIVE):
-                    t.name = "CLOSURE_PARENTHESIS"
-                A.append(t)
+                A.append(i.unparse())
         
         r = Holder()
         if num < 0:
@@ -104,16 +115,14 @@ class NUMBER(Term):
     def __hash__(self):
         return hash(self.number)
     def __eq__(self, other):
-        if type(self) != type(other):
-            return False
-        return self.number == other.number
+        return type(self) == type(other) and self.number == other.number
     def unparse(self):
         k = self.number
         res = Holder()
         if k < 0:
             res += Holder("OPERATOR", ['-'])
             k *= -1
-        res += Holder("NUMBER", str(k))
+        res += Holder("NUMBER", [str(k)])
         return res
 
 class VARIABLE(Term):
@@ -125,9 +134,9 @@ class VARIABLE(Term):
     def __hash__(self):
         return hash(self.variable)
     def __eq__(self, other):
-        if not super() == other:
-            return False
-        return self.variable == other.variable and self.internal_structure == other.internal_structure
+        return type(self) == type(other) and \
+            self.variable == other.variable and \
+            self.internal_structure == other.internal_structure
     def make_var_name(dat):
         if dat.name == "FUNCTION":
             dat = Holder(data=[dat])
@@ -167,12 +176,6 @@ class FUNCTION(Closure):
         self.terms = args or []
     def __repr__(self):
         return f"{self.name}({', '.join(map(str, self.terms))})"
-    def __eq__(self, other):
-        if not super() == other:
-            return False
-        if self.name != other.name:
-            return False
-        return list(self) == list(other)
     def unparse(self):
         if self.name == "factorial":
             return Holder("RIGHT_UNARY_COUPLE", [
@@ -193,7 +196,6 @@ class FUNCTION(Closure):
 
 class FRACTION(Closure):
     def __init__(self, top=None, bottom=None):
-        # Closure
         self.terms = [top or NUMBER(), bottom or NUMBER()]
     def top(self):
         return self.terms[0]
@@ -203,10 +205,6 @@ class FRACTION(Closure):
         return iter((self.top(), self.bottom()))
     def __repr__(self):
         return f"frac({self.top()}, {self.bottom()})"
-    def __eq__(self, other):
-        if not super() == other:
-            return False
-        return (self.top() == other.top and self.bottom() == other.bottom)
     def unparse(self):
         return Holder("frac", [
             Holder(data=[self.top().unparse()]),
@@ -223,10 +221,6 @@ class EXPONENT(Closure):
         return iter((self.base(), self.exp()))
     def __repr__(self):
         return f"pow({self.base()}, {self.exp()})"
-    def __eq__(self, other):
-        if not super() == other:
-            return False
-        return (self.base() == other.base and self.exp() == other.exp)
     def unparse(self):
         if self.exp() == FRACTION(NUMBER(1), NUMBER(2)):
             return Holder("sqrt", [
@@ -381,9 +375,6 @@ class Comp_Parser:
                 
                 if len(s) == 1:
                     return s[0]
-                
-                if name == "CLOSURE_PARENTHESIS":
-                    return PARENTHESIS(s)
                 
                 if not isinstance(s, Term):
                     s = ADDITIVE(s)

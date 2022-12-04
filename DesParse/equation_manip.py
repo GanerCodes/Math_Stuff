@@ -1,34 +1,89 @@
 from equation_parse import *
+from types import UnionType
+from typing import Union
 
-TRAVERSABLE = PARENTHESIS|ADDITIVE|FUNCTION|FRACTION|EXPONENT|PRODUCT
+TRAVERSABLE = ADDITIVE|FUNCTION|FRACTION|EXPONENT|PRODUCT
 
-def clean(comp):
-    if not isinstance(comp, TRAVERSABLE):
+def prod(l, start=1): # todo do the ittertools operation whtaever
+    for i in l:
+        start *= i
+    return start
+
+def instance_intersection(cls, *terms):
+    # int, 4, 4.4 🠒 False
+    # float|int, 4, 4.4 🠒 False
+    # int|str, 4, 5 🠒 int
+    # (class Egg(str)) Egg|str|float, egg1, egg2 🠒 Egg|str
+    if isinstance(cls, UnionType):
+        r = tuple(t for t in cls.__args__ if instance_intersection(t, *terms))
+        if not r:
+            return False
+        if len(r) == 1:
+            return r[0]
+        return Union(r)
+    elif all(isinstance(t, cls) for t in terms):
+        return cls
+    return False
+
+def flatten(comp):
+    if isinstance(comp, TRAVERSABLE):
+        flat = [k for t in comp.terms if (k := flatten(t))]
+        
+        if not flat:
+            return None
+        
+        typ = instance_intersection(ADDITIVE|PRODUCT, comp)
+        if typ:
+            new_terms = []
+            for t in flat:
+                if isinstance(t, typ) or (isinstance(t, TRAVERSABLE) and len(t.terms) == 1):
+                    new_terms += t.terms
+                else:
+                    new_terms.append(t)
+            flat = new_terms
+        
+        if len(flat) == 1:
+            return flat[0]
+        
+        comp.terms = flat
+    else:
         return comp
     
-    comp.terms = list(map(clean, comp.terms))
-    for i, v in enumerate(comp.terms):
-        comp.terms[i] = clean(v)
+    typ = instance_intersection(ADDITIVE|PRODUCT, comp)
+    if not typ:
+        return comp
     
-    q = None
-    if isinstance(comp, ADDITIVE):
-        q = ADDITIVE
-    elif isinstance(comp, PRODUCT):
-        q = PRODUCT
+    terms, numbers = [], []
+    for t in comp.terms:
+        if isinstance(t, NUMBER):
+            numbers.append(t.number)
+        else:
+            terms.append(t)
     
-    if q:
-        n = []
-        for t in comp.terms:
-            if isinstance(t, q):
-                n += t.terms
+    if typ == ADDITIVE:
+        num = sum(numbers)
+        if not terms:
+            if num == 0:
+                return None
             else:
-                n.append(t)
-        comp.terms = n
+                return NUMBER(num)
+        elif num == 0:
+            return terms[0] if len(terms) == 1 else typ(terms)
+    elif typ == PRODUCT:
+        if len(numbers):
+            num = prod(numbers)
+            if num == 0:
+                return None
+            if num == 1:
+                if not terms:
+                    return NUMBER(1)
+                return terms[0] if len(terms) == 1 else typ(terms)
+            if not terms:
+                return NUMBER(num)
+        elif terms:
+            return terms[0] if len(terms) == 1 else typ(terms)
     
-    if len(comp.terms) == 1:
-        comp = comp.terms[0]
-    
-    return comp
+    return typ([ NUMBER(num), *terms ])
 
 def distribute(*terms):
     if len(terms) == 1:
@@ -37,45 +92,17 @@ def distribute(*terms):
         a, b = terms
         A, B = isinstance(a, ADDITIVE), isinstance(b, ADDITIVE)
         if not (A or B):
-            return PRODUCT(terms)
+            return PRODUCT([a, b])
         if A ^ B:
-            m, s = (a, b) if A else (b, a)
-            return ADDITIVE([
-                distribute(s, t) for t in m])
+            m, s = (a, b)[::2*A-1] # stay mad
+            return ADDITIVE([distribute(s, t) for t in m])
         
-        r = []
-        for x in a:
-            for y in b:
-                r.append(distribute(x, y))
-        return ADDITIVE(r)
-            
-    return distribute(terms[0], PRODUCT(terms[1:]))
-
-def add_or_ins(d, v, n=1):
-    if v in d:
-        d[v] += n
-    else:
-        d[v] = n
+        return ADDITIVE([distribute(x, y) for x in a for y in b])
+    
+    return distribute(terms[0], distribute(*terms[1:]))
 
 def combine_additive_like_terms(comp):
-    terms = {}
-    for v in comp.terms:
-        if isinstance(v, NUMBER):
-            add_or_ins(terms, NUMBER(1), v.number)
-            continue
-        if isinstance(v, PRODUCT): # todo strip this out and use the product class method
-            n, new_term = 1, []
-            for k in v.terms:
-                if isinstance(k, NUMBER):
-                    n *= k.number
-                else:
-                    new_term.append(k)
-            if not n:
-                continue
-            
-            add_or_ins(terms, PRODUCT(new_term), n)
-            continue
-        add_or_ins(terms, v)
+    terms = comp.gather_terms()
     
     res = []
     for t, n in terms.items():
@@ -98,25 +125,27 @@ def combine_additive_like_terms(comp):
 
 def expand(comp):
     if isinstance(comp, TRAVERSABLE):
-        comp.terms = [
-            (expand(v) if isinstance(v, TRAVERSABLE) else v)
-                for v in comp.terms]
-    
-    if not isinstance(comp, PRODUCT):
+        comp.terms = [k for t in comp.terms if (k := expand(t))]
+    else:
         return comp
     
+    if not isinstance(comp, PRODUCT):
+        return flatten(comp)
+    
     res = distribute(*comp.terms)
-    res = clean(res)
+    res = flatten(res)
     if isinstance(res, ADDITIVE):
         res = combine_additive_like_terms(res)
-    return clean(res)
+    return res
 
 if __name__ == "__main__":
     # t = r"""\left(a+b\right)\left(c+d\right)"""
     # t = r"""\left(x^{2}-y^{2}\right)\left(\left(x-y^{2}+2\right)\left(a+b\right)\left(c-d\right)\right)"""
     # t = r"""\left(x^{2}+y\right)\left(y+2+\left(a+b\right)\left(c-d\right)\right)"""
     # t = r"""\left(x^{2}+y\right)\left(y+2+\left(a+b\right)\left(c-d\right)\right)69"""
-    t = r"""\left(6-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
+    # t = r"""\left(6-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
+    # t = r"""\left(x^{2}\frac{\left(x^{2y}-2\right)^{2}}{\left(10x-\left(5+5x\right)y\sin\left(\operatorname{mod}\left(x,2\right),y\right)\right)}\right)"""
+    t = r"""\left(6-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
     print(t)
     print()
     print(k := Comp_Parser(t))
