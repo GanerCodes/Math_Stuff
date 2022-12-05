@@ -165,6 +165,9 @@ class VARIABLE(Term):
             if i.name == "subscript":
                 s += f"_<{VARIABLE.make_var_name(i)}>"
                 continue
+            if i.name == "CLOSURE_SQUARE":
+                s += f"[{str(i)}]"
+                continue
             assert 0
         return s
     def unparse(self):

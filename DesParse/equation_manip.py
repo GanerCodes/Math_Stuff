@@ -145,7 +145,9 @@ if __name__ == "__main__":
     # t = r"""\left(x^{2}+y\right)\left(y+2+\left(a+b\right)\left(c-d\right)\right)69"""
     # t = r"""\left(6-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
     # t = r"""\left(x^{2}\frac{\left(x^{2y}-2\right)^{2}}{\left(10x-\left(5+5x\right)y\sin\left(\operatorname{mod}\left(x,2\right),y\right)\right)}\right)"""
-    t = r"""\left(6-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
+    # t = r"""\left(6-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
+    # t = r"""\left(3-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)"""
+    t = r"""\left(r_{1}\left[1\right]^{2}+2\right)"""
     print(t)
     print()
     print(k := Comp_Parser(t))

@@ -110,7 +110,9 @@ class PassZero(Parser):
         if r.name == "subscript":
             VARIABLE += content.next()
             if not (r := content.peek()): return VARIABLE
-        # maybe implement array variable type stuff here?
+        if r.name == "CLOSURE_SQUARE": # ~
+            VARIABLE += content.next()
+            if not (r := content.peek()): return VARIABLE
         if r.name == "SYMBOL" and r.data[0] == '.':
             if not (t := content.peek(1)): return VARIABLE
             if t.name in {"VAR", "SYMBOL"}:
