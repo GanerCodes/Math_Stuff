@@ -14,6 +14,8 @@ def add_or_ins(d, v, n=1):
 class Term:
     def __eq__(self, other):
         return type(self) == type(other)
+    def __hash__(self):
+        return 0
     
 class Closure(Term):
     def __init__(self, terms=None):
@@ -28,16 +30,18 @@ class Closure(Term):
         return self.terms[i]
     def __eq__(self, other):
         return type(self) == type(other) and self.terms == other.terms
+    def __hash__(self):
+        return 0
     def unparse_terms(self):
         return [c.unparse() for c in self]
 
 class Commutative_set(Closure):
     def __eq__(self, other):
         return type(self) == type(other) and self.gather_terms() == other.gather_terms()
-    def __repr__(self):
-        return "(%s)" % (' # '.join(map(str, self.terms)))
     def __hash__(self):
         return 0
+    def __repr__(self):
+        return "(%s)" % (' # '.join(map(str, self.terms)))
     def gather_terms(self):
         terms = {}
         for v in self.terms:

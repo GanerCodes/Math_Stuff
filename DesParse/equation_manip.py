@@ -102,9 +102,14 @@ def distribute(*terms):
     return distribute(terms[0], distribute(*terms[1:]))
 
 def combine_additive_like_terms(comp):
-    terms = comp.gather_terms()
+    if isinstance(comp, TRAVERSABLE):
+        comp.terms = [combine_additive_like_terms(t) for t in comp.terms]
+    if not isinstance(comp, ADDITIVE):
+        return comp
     
+    terms = comp.gather_terms()
     res = []
+    
     for t, n in terms.items():
         if not n:
             continue
@@ -123,6 +128,38 @@ def combine_additive_like_terms(comp):
     
     return ADDITIVE(res)
 
+def combine_multiplicative_like_terms(comp):
+    if isinstance(comp, TRAVERSABLE):
+        comp.terms = [combine_multiplicative_like_terms(t) for t in comp.terms]
+    if not isinstance(comp, PRODUCT):
+        return comp
+    
+    terms = comp.gather_terms()
+    new_terms, res = {}, []
+    
+    for k, v in terms.items():
+        if isinstance(k, NUMBER):
+            res.append(NUMBER(v))
+            continue
+        
+        if isinstance(k, EXPONENT):
+            k, v = k.base(), ADDITIVE([NUMBER(v), k.exp()])
+        else:
+            v = NUMBER(v)
+        
+        if k in new_terms:
+            new_terms[k].terms.append(v)
+        else:
+            new_terms[k] = ADDITIVE([v])
+    for k, v in new_terms.items():
+        k, v = flatten(k), flatten(v)
+        if isinstance(v, NUMBER) and v.number == 1:
+            res.append(k)
+        else:
+            res.append(EXPONENT(k, v))
+    
+    return PRODUCT(res)
+
 def expand(comp):
     if isinstance(comp, TRAVERSABLE):
         comp.terms = [k for t in comp.terms if (k := expand(t))]
@@ -134,8 +171,8 @@ def expand(comp):
     
     res = distribute(*comp.terms)
     res = flatten(res)
-    if isinstance(res, ADDITIVE):
-        res = combine_additive_like_terms(res)
+    res = combine_additive_like_terms(res)
+    res = combine_multiplicative_like_terms(res)
     return res
 
 if __name__ == "__main__":
@@ -147,7 +184,8 @@ if __name__ == "__main__":
     # t = r"""\left(x^{2}\frac{\left(x^{2y}-2\right)^{2}}{\left(10x-\left(5+5x\right)y\sin\left(\operatorname{mod}\left(x,2\right),y\right)\right)}\right)"""
     # t = r"""\left(6-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
     # t = r"""\left(3-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)"""
-    t = r"""\left(r_{1}\left[1\right]^{2}+2\right)"""
+    # t = r"""\left(r_{1}\left[1\right]^{2}+2\right)"""
+    t = r"""\left(3-\lambda\right)\left(7-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)\left(7-\lambda\right)"""
     print(t)
     print()
     print(k := Comp_Parser(t))
