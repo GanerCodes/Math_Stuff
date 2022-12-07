@@ -185,7 +185,8 @@ if __name__ == "__main__":
     # t = r"""\left(6-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)\left(4-\lambda\right)-\left(-1\right)\left(5\right)"""
     # t = r"""\left(3-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)"""
     # t = r"""\left(r_{1}\left[1\right]^{2}+2\right)"""
-    t = r"""\left(3-\lambda\right)\left(7-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)\left(7-\lambda\right)"""
+    # t = r"""\left(3-\lambda\right)\left(7-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)\left(7-\lambda\right)"""
+    t = r"""\left(2-i\right)\left(-2-i\right)"""
     print(t)
     print()
     print(k := Comp_Parser(t))
