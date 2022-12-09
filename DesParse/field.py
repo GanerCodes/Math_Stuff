@@ -19,8 +19,12 @@ class Group(ABC):
     
     @classmethod
     def add_content(cls, self, t, n=1):
-        if isinstance(t, cls): # EXPAND AND ADD SUBTERMS
-            pass
+        if t == self.identity() or n == 0:
+            return
+        
+        if isinstance(t, cls):
+            for k, v in t:
+                self.add_content(k, v)
         
         if t in self.content:
             self.content[t] += n
@@ -29,10 +33,6 @@ class Group(ABC):
     
     def __iter__(self):
         return iter(self.content.items())
-    
-    @abstractmethod
-    def operate(self, other):
-        pass
     
     @abstractmethod
     def identity(self):
@@ -49,6 +49,7 @@ class Group(ABC):
 class Additive(Group):
     def identity(self):
         return 0
-    def operate(self, other):
-        pass
-        
+
+class Product(Group):
+    def identity(self):
+        return 1
