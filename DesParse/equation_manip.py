@@ -1,6 +1,7 @@
 from equation_parse import *
 from types import UnionType
 from typing import Union
+from util import instance_intersection
 
 TRAVERSABLE = ADDITIVE|FUNCTION|FRACTION|EXPONENT|PRODUCT
 
@@ -8,22 +9,6 @@ def prod(l, start=1): # todo do the ittertools operation whtaever
     for i in l:
         start *= i
     return start
-
-def instance_intersection(cls, *terms):
-    # int, 4, 4.4 🠒 False
-    # float|int, 4, 4.4 🠒 False
-    # int|str, 4, 5 🠒 int
-    # (class Egg(str)) Egg|str|float, egg1, egg2 🠒 Egg|str
-    if isinstance(cls, UnionType):
-        r = tuple(t for t in cls.__args__ if instance_intersection(t, *terms))
-        if not r:
-            return False
-        if len(r) == 1:
-            return r[0]
-        return Union(r)
-    elif all(isinstance(t, cls) for t in terms):
-        return cls
-    return False
 
 def flatten(comp):
     if isinstance(comp, TRAVERSABLE):

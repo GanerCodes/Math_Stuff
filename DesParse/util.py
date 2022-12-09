@@ -76,3 +76,19 @@ class Peekable:
     def nexts(self):
         while len(self):
             yield self.next()
+
+def instance_intersection(cls, *terms):
+    # int, 4, 4.4 🠒 False
+    # float|int, 4, 4.4 🠒 False
+    # int|str, 4, 5 🠒 int
+    # (class Egg(str)) Egg|str|float, egg1, egg2 🠒 Egg|str
+    if isinstance(cls, UnionType):
+        r = tuple(t for t in cls.__args__ if instance_intersection(t, *terms))
+        if not r:
+            return False
+        if len(r) == 1:
+            return r[0]
+        return Union(r)
+    elif all(isinstance(t, cls) for t in terms):
+        return cls
+    return False
