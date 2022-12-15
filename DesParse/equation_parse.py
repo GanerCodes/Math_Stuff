@@ -1,15 +1,10 @@
 from latex_comprehension import Parser, compile_latex, Holder, Peekable, SYMBOL_MAP, PSEUDO_CLOSURES
+from util import add_or_ins
 
 def get_first_non_pseudo(c):
     while isinstance(c, Holder) and c.name in PSEUDO_CLOSURES and c.data:
         c = c.data[0]
     return c
-
-def add_or_ins(d, v, n=1):
-    if v in d:
-        d[v] += n
-    else:
-        d[v] = n
 
 class Term:
     def __eq__(self, other):

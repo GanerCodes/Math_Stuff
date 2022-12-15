@@ -1,6 +1,4 @@
 from equation_parse import *
-from types import UnionType
-from typing import Union
 from util import instance_intersection
 
 TRAVERSABLE = ADDITIVE|FUNCTION|FRACTION|EXPONENT|PRODUCT

@@ -1,3 +1,6 @@
+from types import UnionType
+from typing import Union
+
 class Njective_static_map:
     def __init__(self, types, data):
         self.mappings = {i: {} for i in types}
@@ -76,6 +79,12 @@ class Peekable:
     def nexts(self):
         while len(self):
             yield self.next()
+
+def add_or_ins(d: dict, v: object, n: int=1):
+    if v in d:
+        d[v] += n
+    else:
+        d[v] = n
 
 def instance_intersection(cls, *terms):
     # int, 4, 4.4 🠒 False
