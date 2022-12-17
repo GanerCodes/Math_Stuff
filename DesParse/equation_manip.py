@@ -155,7 +155,7 @@ def expand(comp):
     res = distribute(*comp.terms)
     res = flatten(res)
     res = combine_additive_like_terms(res)
-    res = combine_multiplicative_like_terms(res)
+    # res = combine_multiplicative_like_terms(res)
     return res
 
 if __name__ == "__main__":
@@ -169,7 +169,9 @@ if __name__ == "__main__":
     # t = r"""\left(3-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)"""
     # t = r"""\left(r_{1}\left[1\right]^{2}+2\right)"""
     # t = r"""\left(3-\lambda\right)\left(7-\lambda\right)\left(7-\lambda\right)-\left(4\right)\left(8\right)\left(7-\lambda\right)"""
-    t = r"""\left(2-i\right)\left(-2-i\right)"""
+    # t = r"""\left(2-i\right)\left(-2-i\right)"""
+    # t = r"""\left(x^{2}+5y\right)\left(2-2x+y\right)"""
+    t = r"""\left(x^{2}+5y\right)\left(2-2x\right)"""
     print(t)
     print()
     print(k := Comp_Parser(t))
