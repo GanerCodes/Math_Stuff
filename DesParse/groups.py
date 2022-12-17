@@ -1,14 +1,16 @@
-from util import instance_intersection, add_or_ins
+from util import instance_intersection, add_or_ins, find_fixed_point
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from itertools import product
 
 class Var:
     def __init__(self, name):
         self.name = name
     
     def __eq__(self, other):
-        return type(self) == type(other) and \
-            self.name == other.name
+        return (type(self) == type(other) \
+                and self.name == other.name) or \
+            self.name == other
     
     def __hash__(self):
         return hash(self.name)
@@ -18,6 +20,9 @@ class Var:
     
     def __deepcopy__(self, _=None):
         return type(self)(self.name)
+
+class Number(Var):
+    pass
 
 class Function:
     def __init__(self, name, terms=None):
@@ -59,28 +64,11 @@ class Group(ABC):
     def __hash__(self):
         return 0
     
-    def add_content(self, t, n=1): # dfuyasdhisad
-        cls = type(self)
-        if t == cls.IDENTITY or n == 0:
-            return
-        
-        if isinstance(t, cls):
-            if len(t) == 1:
-                i, n2 = (*t.terms.items(), )[0]
-                self.add_content(i, self.operate(n, n2))
-                return
-            add_or_ins(self.terms, t, n)
-            return
-        
-        if isinstance(t, dict):
-            for i, n2 in t.items():
-                self.add_content(i, v * n)
-            return
-        
-        add_or_ins(self.terms, t, n)
+    def add_content(self, t, n=1):
+        pass # TODO xd
     
     def __repr__(self):
-        return f'[G-{self.__class__.__name__[0].upper()}]({", ".join(f"<{k}: {v}>" for k, v in self.terms.items())})'
+        return f'[G{self.__class__.__name__[0].upper()}]({" ".join(f"<{k}:{v}>" for k, v in self.terms.items())})'
     
     def __deepcopy__(self, _=None):
         return type(self)(deepcopy(self.terms))
@@ -90,23 +78,11 @@ class Group(ABC):
         pass
 
 class Additive(Group):
-    IDENTITY = 0
+    IDENTITY = Number(0)
     def operate(n1, n2):
         return n1 + n2
 
 class Product(Group):
-    IDENTITY = 1
+    IDENTITY = Number(1)
     def operate(n1, n2):
         return n1 * n2
-
-# 1/(x+5)^2
-j = Product({
-    Var("1"): 1,
-    Product({
-        Additive({
-            Var("x"): 1,
-            Var("1"): 5
-        }): 2
-    }): -12
-})
-print(j)

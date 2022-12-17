@@ -1,5 +1,6 @@
 from types import UnionType
 from typing import Union
+from copy import deepcopy
 
 class Njective_static_map:
     def __init__(self, types, data):
@@ -101,3 +102,10 @@ def instance_intersection(cls, *terms):
     elif all(isinstance(t, cls) for t in terms):
         return cls
     return False
+
+def find_fixed_point(obj, func):
+    while True:
+        old_obj = deepcopy(obj)
+        obj = func(obj)
+        if old_obj == obj:
+            return obj
