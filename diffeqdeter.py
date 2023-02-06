@@ -1,9 +1,9 @@
 from math import *
+import random
 
 eqs="""
-x x**2 6*x-2*x**2
-1 2*x  6-4*x
-0 2    -4
+x**-0.5 x**-1
+-0.5*x**-1.5 -x**-2
 """
 
 class Eq:
