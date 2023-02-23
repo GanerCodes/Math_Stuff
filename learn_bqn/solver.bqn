@@ -2,17 +2,18 @@ S←•Show
 
 Det←{1≥≠𝕩?0‿0⊑𝕩;M←𝕊{(𝕩≠l)/⌾⍉1↓x}⋄-´{0‿𝕩⊑x×M𝕩}¨l←↕≠x←𝕩}
 CoF←{N←{((1⊑𝕨)≠l)/⌾⍉((⊑𝕨)≠l←↕≠𝕩)/𝕩}⋄{(¯1⋆𝕨+𝕩)×Det(𝕨⋈𝕩) N x}⌜˜↕≠x←𝕩}
-Inv←{(⍉CoF𝕩)÷(Det 𝕩)}
+Adj←{⍉CoF𝕩}
+Inv←{(Adj𝕩)÷(Det 𝕩)}
 SwC←{n‿v←𝕨⋄{n-⊸⌽v⌾⊏⊢n⌽𝕩}⌾⍉𝕩}
 Sol←{v←𝕩⋄(𝕨⊸{Det 𝕩‿v SwC 𝕨}¨↕≠v)÷Det 𝕨}
 
-m←4‿4⥊∾⟨1‿3‿1‿4
-        3‿9‿5‿9
-        2‿2‿1‿5
-        3‿4‿2‿3⟩
-v←2‿3‿1‿4
+m←3‿3⥊∾⟨1‿1‿1
+        0‿1‿1
+        0‿0‿1⟩
+v←2‿3‿1
 
-S Det m
-S CoF m
-S Inv m
-S m Sol v
+S "Det: " ⋈ Det m
+S "CoF: " ⋈ CoF m
+S "Adj: " ⋈ Adj m
+S "Inv: " ⋈ Inv m
+S "Sol: " ⋈ m Sol v
