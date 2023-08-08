@@ -295,4 +295,6 @@ if __name__ == "__main__":
     for test in TESTS:
         p = parse_latex(test)
         c = compile_latex(p)
-        print(f"{test} 🠒 {p} 🠒 {c}")
+        # print(f"{test} 🠒 {p} 🠒 {c}")
+        print(test)
+        print(p)
